@@ -60,7 +60,6 @@ earwig.png
 electric_knifefish.png
 elephant.png
 falcon.png
-filelist.txt
 finch.png
 fish.png
 flamingo.png

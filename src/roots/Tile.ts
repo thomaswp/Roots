@@ -1,17 +1,21 @@
-import { defineHex, Grid, rectangle } from "honeycomb-grid";
+import { defineHex } from "honeycomb-grid";
 import { Roots } from "./Roots";
-import { Color } from "pixi.js";
 
 export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
   
     // this property is present in the instance
+    id: number;
+    unlocked: boolean = false;
     active: boolean = false;
-    tempActive: boolean = false;
     groupIndex: number;
     game: Roots;
   
+    isPassable() {
+        return this.active || this.unlocked;
+    }
+
     clicked() {
-        if (this.active) return;
+        if (this.unlocked) return;
         this.game.tileClicked(this);
     }
   }

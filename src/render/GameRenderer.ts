@@ -37,7 +37,6 @@ export class GameRenderer {
         }
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
         .map(i => paths[i % paths.length]);
-        console.log(this.groupAnimalPaths);
     }
 
     colorForGroupIndex(index: number) : PIXI.Color {
