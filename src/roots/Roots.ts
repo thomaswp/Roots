@@ -62,8 +62,10 @@ export class Roots {
 
     checkConnections() {
         let activeGroupIndices = this.activeTiles.map(tile => tile.groupIndex);
+        activeGroupIndices = activeGroupIndices.filter(groupIndex => groupIndex !== undefined);
         // remove duplicates
         activeGroupIndices = activeGroupIndices.filter((value, index, self) => self.indexOf(value) === index);
+        if (activeGroupIndices.length === 0) return;
 
         let clear = false, refresh = false;
         for (let i = 0; i < activeGroupIndices.length; i++) {

@@ -49,6 +49,7 @@ export class HexRenderer extends Container {
             this.hovered = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
             this.redraw();
+            console.log('clicked', tile.id);
         }
     }
 

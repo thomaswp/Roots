@@ -1,6 +1,7 @@
 import { Grid, rectangle } from "honeycomb-grid";
 import { Tile } from "./Tile";
 import { Edge, dijkstra, IGraphAdapter } from "../util/Dijkstra";
+import seedrandom from 'seedrandom'
 
 class GridAdapter implements IGraphAdapter<Tile> {
     grid: Grid<Tile>;
@@ -41,6 +42,7 @@ export class LevelGenerator {
     grid: Grid<Tile>;
     groups: Tile[][];
     tileMap: Map<number, Tile> = new Map();
+    random: () => number;
 
     maxStones = 6;
 
@@ -60,6 +62,8 @@ export class LevelGenerator {
             tile.grid = this.grid;
             this.tileMap.set(tile.id, tile);
         });
+
+        this.random = seedrandom("1231");
     }
 
     private findUngroupedTilesWithinDistance(adapter: GridAdapter, tile: Tile, distance: number): Cost[] {
@@ -94,18 +98,18 @@ export class LevelGenerator {
             let dependentMove: Tile[] = [];
 
             // There's some chance we create a new group, not (intentionally) adjacent to any other group
-            if (groupedTiles.length == 0) { // || Math.random() > 2 / (stones + 3)) {
-                tile = ungroupedTiles[Math.floor(Math.random() * ungroupedTiles.length)];
+            if (groupedTiles.length == 0) { // || this.random() > 2 / (stones + 3)) {
+                tile = ungroupedTiles[Math.floor(this.random()* ungroupedTiles.length)];
             } else {
                 // // // Otherwise, we want to find a tile that is adjacent to a group
                 // let tries = 5;
                 // while (tile == null && tries > 0) {
                 //     // TODO: This assumes that more recently added tiles are more "interesting" or necessary, but that's
                 //     // not necessarily the case
-                //     let neighbor = groupedTiles[Math.floor(Math.random() * Math.min(stones * 2, groupedTiles.length))];
+                //     let neighbor = groupedTiles[Math.floor(this.random()() * Math.min(stones * 2, groupedTiles.length))];
                 //     let possibleTiles = neighbor.getNeighbors().filter(neighbor => neighbor.groupIndex == null);
                 //     if (possibleTiles.length > 0) {
-                //         tile = possibleTiles[Math.floor(Math.random() * possibleTiles.length)];
+                //         tile = possibleTiles[Math.floor(this.random()() * possibleTiles.length)];
                 //         addingAdjacent = true;
                 //         break;
                 //     }
@@ -114,7 +118,7 @@ export class LevelGenerator {
 
                 // // If we failed to find a base tile near a group, choose randomly
                 // if (tries == 0) {
-                //     tile = ungroupedTiles[Math.floor(Math.random() * ungroupedTiles.length)];
+                //     tile = ungroupedTiles[Math.floor(this.random() * ungroupedTiles.length)];
                 // }
 
                 dependentMove = moves[moves.length - 1];
@@ -124,11 +128,14 @@ export class LevelGenerator {
                     this.findUngroupedTilesWithinDistance(gridAdapter, tile, stones - 1)
                     .forEach(pair => possibleStartingTiles.add(this.tileMap.get(pair.id)));
                 });
+                console.log('possible starting tiles', [...possibleStartingTiles.keys()].map(tile => tile.id));
+                dependentMove.forEach(tile => possibleStartingTiles.delete(tile));
                 if (possibleStartingTiles.size == 0) {
                     console.log('no possible starting tiles for dependent move', dependentMove);
                     break; // TODO: Look for move(s) that will actually work, not always last
                 }
-                tile = Array.from(possibleStartingTiles)[Math.floor(Math.random() * possibleStartingTiles.size)];
+                tile = Array.from(possibleStartingTiles)[Math.floor(this.random() * possibleStartingTiles.size)];
+                console.log('tadm', tile, ...dependentMove);
             }
             console.log('attempting to group with tile', tile.id, tile);
 
@@ -149,19 +156,22 @@ export class LevelGenerator {
 
             if (dependentMove.length > 0) {
                 gridAdapter.ignoreGroupingTiles = dependentMove;
-                let possibleIDsBeforeDependentMove = this.findUngroupedTilesWithinDistance(gridAdapter, tile, maxPathCost)
-                .map(pair => pair.id);
+                let possiblePairsBeforeDependentMove = this.findUngroupedTilesWithinDistance(gridAdapter, tile, maxPathCost);
                 gridAdapter.ignoreGroupingTiles = [];
 
+                let costMap = new Map<number, number>();
+                possiblePairsBeforeDependentMove.forEach(pair => costMap.set(pair.id, pair.cost));
+
                 let newlyPossiblePairs = possiblePairs
-                .filter(pair => !possibleIDsBeforeDependentMove.includes(pair.id));
+                .filter(pair => !costMap.has(pair.id) || costMap.get(pair.id) > pair.cost);
 
                 // Wouldn't normally need to break, but for testing
                 if (newlyPossiblePairs.length == 0) {
                     console.log('no newly possible pairs');
-                    break;
+                    // TODO: Need a more robust solution: this can get pretty expensive
+                    continue;
                 }
-                let toAdd = newlyPossiblePairs[Math.floor(Math.random() * newlyPossiblePairs.length)];
+                let toAdd = newlyPossiblePairs[Math.floor(this.random() * newlyPossiblePairs.length)];
                 addPair(toAdd);
             }
 
@@ -171,7 +181,7 @@ export class LevelGenerator {
             // possible that no group exists that is exactly the target cost, and even if it exists
             // finding it is very computationally expensive
             while (possiblePairs.length > 0 && remainingStones > 0) {
-                let addedIndex = Math.floor(Math.random() * possiblePairs.length); 
+                let addedIndex = Math.floor(this.random() * possiblePairs.length); 
                 let added = possiblePairs[addedIndex];
                 addPair(added);
             }
@@ -189,7 +199,7 @@ export class LevelGenerator {
             // TODO: May need some special logic to make these, which requires that they
             // maximize use of existing tiles (e.g. maximize grid distance)
             // That could also just be a baseline heuristic
-            let addStone = stones < this.maxStones && groupedTiles.length * Math.random() > Math.pow(stones, 2.5) * 3;
+            let addStone = stones < this.maxStones && groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 3;
             if (addStone) stones++;
 
             tileGroup.forEach(groupTile => {
