@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Roots } from '../roots/Roots';
 import { GridRenderer } from './GridRender';
 import { animalIcons } from './Animals';
+import { LevelGenerator } from '../roots/LevelGenerator';
 
 export class GameRenderer {
     
@@ -25,7 +26,7 @@ export class GameRenderer {
         let basicColors = Array.from(new Array(nBasicColors).keys()).map(i => {
             return new PIXI.Color({h: i * 360 / nBasicColors, s: 85, v: 100});
         })
-        let nGroups = this.game.maxGroupIndex;
+        let nGroups = LevelGenerator.maxGroupIndex;
         this.groupColors = Array.from(new Array(nGroups).keys())
         .map(i => basicColors[Math.floor(Math.random() * nBasicColors)]);
         

@@ -2,11 +2,11 @@ import { defineHex, Direction, Grid, rectangle } from "honeycomb-grid";
 import { Tile } from "./Tile";
 import e from "express";
 import { Clustering } from "./Clustering";
+import { LevelGenerator } from "./LevelGenerator";
 
 export class Roots {
 
     grid: Grid<Tile>;
-    maxGroupIndex;
     clustering: Clustering = new Clustering();
     backupClustering: Clustering;
     activeTiles: Tile[] = [];
@@ -15,30 +15,19 @@ export class Roots {
     onNeedRefresh: () => void;
 
     constructor() {
+        let generator = new LevelGenerator(20, 15);
+        this.grid = generator.generate();
+        this.groups = generator.groups;
 
-        // 2. Create a grid by passing the class and a "traverser" for a rectangular-shaped grid:
-        this.grid = new Grid(Tile, rectangle({ width: 20, height: 15 }))
-
-        this.maxGroupIndex = 200;
-        this.groups = new Array(this.maxGroupIndex);
-        let indexes = Array.from(Array(this.maxGroupIndex).keys());
-        let id = 0;
         this.grid.forEach(tile => {
-            tile.id = id++;
             tile.game = this;
-            tile.groupIndex = indexes[Math.floor(Math.random() * indexes.length)]
-            if (this.groups[tile.groupIndex] == null) {
-                this.groups[tile.groupIndex] = [];
-            }
-            this.groups[tile.groupIndex].push(tile);
         });
     }
 
     addToClustering(tile: Tile) {
         let mergedClusters = [this.clustering.addNewCluster(tile.id)];
-        for (let i = 0; i < 8; i++) {
-            let neighbor = this.grid.neighborOf(tile, i, {allowOutside: false});
-            if (!neighbor || !neighbor.isPassable()) continue;
+        let neighbors = tile.getPassableNeighbors();
+        for (let neighbor of neighbors) {
             let neighborClusterIndex = this.clustering.getClusterIndex(neighbor.id);
             if (neighborClusterIndex === undefined) continue;
             if (!mergedClusters.includes(neighborClusterIndex)) {
