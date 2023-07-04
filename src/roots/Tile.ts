@@ -9,7 +9,9 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
     unlocked: boolean = false;
     active: boolean = false;
     groupIndex: number;
+    groupCount: number;
     game: Roots;
+    isStoneTile: boolean = false;
   
     isPassable() {
         return this.active || this.unlocked;

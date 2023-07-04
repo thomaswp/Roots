@@ -22,13 +22,14 @@ export class GameRenderer {
     }
 
     initGroups() {
-        let nBasicColors = 8;
+        let nBasicColors = 5;
         let basicColors = Array.from(new Array(nBasicColors).keys()).map(i => {
             return new PIXI.Color({h: i * 360 / nBasicColors, s: 85, v: 100});
-        })
+        });
+        // basicColors.forEach((c, i) => console.log(i, c.toRgbaString()))
+        this.groupColors = basicColors;
+        
         let nGroups = LevelGenerator.maxGroupIndex;
-        this.groupColors = Array.from(new Array(nGroups).keys())
-        .map(i => basicColors[Math.floor(Math.random() * nBasicColors)]);
         
         let paths = animalIcons.split('\n').filter(s => s.length > 0).map(s => s.trim());
         // shuffle paths

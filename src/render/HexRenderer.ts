@@ -61,7 +61,8 @@ export class HexRenderer extends Container {
 
         let active = tile.unlocked || tile.active;
 
-        let color = this.gridRenderer.renderer.colorForGroupIndex(tile.groupIndex);
+        let color = this.gridRenderer.renderer.colorForGroupIndex(tile.groupCount - 2);
+        if (tile.isStoneTile) color = new PIXI.Color(0x888888);
         let lineColor;
         let lineColorAlpha = 1;
         let zIndex = 0;
