@@ -22,7 +22,7 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
         this.game.tileClicked(this);
     }
 
-    getNeighbors() {
+    getNeighbors(): Tile[] {
         let neighbors = [];
         for (let i = 0; i < 8; i++) {
             let neighbor = this.grid.neighborOf(this, i, {allowOutside: false});

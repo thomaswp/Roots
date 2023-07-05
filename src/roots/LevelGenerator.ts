@@ -33,6 +33,38 @@ class GridAdapter implements IGraphAdapter<Tile> {
     }
 }
 
+class Moveset {
+    readonly tiles: Set<Tile> = new Set();
+    readonly footprint: Set<Tile> = new Set();
+    readonly moves: Tile[][] = [];
+    stones: number;
+
+    constructor(stones: number) {
+        this.stones = stones;
+    }
+
+    addMove(move: Tile[]) {
+        this.moves.push(move);
+        move.forEach(tile => {
+            this.tiles.add(tile);
+            this.addFootprint(tile, this.footprint, this.stones);
+        });
+    }
+
+    private addFootprint(tile: Tile, footprint: Set<Tile>, recurse: number = 0) {
+        if (recurse < 0) return;
+        footprint.add(tile);
+        if (recurse > 0) {
+            tile.getNeighbors().forEach(neighbor => this.addFootprint(neighbor, footprint, recurse - 1));
+        }
+    }
+
+    setStones(stones: number) {
+        this.stones = stones;
+        this.tiles.forEach(tile => this.addFootprint(tile, this.footprint, this.stones));
+    }
+}
+
 type Cost = {id: number, cost: number};
 
 export class LevelGenerator {
@@ -84,65 +116,21 @@ export class LevelGenerator {
         let groupedTiles = [];
         let ungroupedTiles = this.grid.toArray();
 
-        let moves: Tile[][] = [];
+        let movesets: Moveset[] = [];
 
         let nextGroupIndex = 0;
 
         let stones = 2;
-        // TODO: Still some black tiles - could bail out early with a fix
-        let attempts = 500;
-        while (attempts > 0 && ungroupedTiles.length >= stones && nextGroupIndex < LevelGenerator.maxGroupIndex) {
-            attempts--;
 
-            let tile: Tile = null;
-            let dependentMove: Tile[] = [];
+        let createMove = (tile: Tile, dependentMove: Tile[] = null, disallowedTiles: Set<Tile> = new Set()) => {
 
-            // There's some chance we create a new group, not (intentionally) adjacent to any other group
-            if (groupedTiles.length == 0) { // || this.random() > 2 / (stones + 3)) {
-                tile = ungroupedTiles[Math.floor(this.random()* ungroupedTiles.length)];
-            } else {
-                // // // Otherwise, we want to find a tile that is adjacent to a group
-                // let tries = 5;
-                // while (tile == null && tries > 0) {
-                //     // TODO: This assumes that more recently added tiles are more "interesting" or necessary, but that's
-                //     // not necessarily the case
-                //     let neighbor = groupedTiles[Math.floor(this.random()() * Math.min(stones * 2, groupedTiles.length))];
-                //     let possibleTiles = neighbor.getNeighbors().filter(neighbor => neighbor.groupIndex == null);
-                //     if (possibleTiles.length > 0) {
-                //         tile = possibleTiles[Math.floor(this.random()() * possibleTiles.length)];
-                //         addingAdjacent = true;
-                //         break;
-                //     }
-                //     tries--;
-                // }
-
-                // // If we failed to find a base tile near a group, choose randomly
-                // if (tries == 0) {
-                //     tile = ungroupedTiles[Math.floor(this.random() * ungroupedTiles.length)];
-                // }
-
-                dependentMove = moves[moves.length - 1];
-                console.log('dependent move', dependentMove);
-                let possibleStartingTiles = new Set<Tile>();
-                dependentMove.forEach(tile => {
-                    this.findUngroupedTilesWithinDistance(gridAdapter, tile, stones - 1)
-                    .forEach(pair => possibleStartingTiles.add(this.tileMap.get(pair.id)));
-                });
-                console.log('possible starting tiles', [...possibleStartingTiles.keys()].map(tile => tile.id));
-                dependentMove.forEach(tile => possibleStartingTiles.delete(tile));
-                if (possibleStartingTiles.size == 0) {
-                    console.log('no possible starting tiles for dependent move', dependentMove);
-                    break; // TODO: Look for move(s) that will actually work, not always last
-                }
-                tile = Array.from(possibleStartingTiles)[Math.floor(this.random() * possibleStartingTiles.size)];
-                console.log('tadm', tile, ...dependentMove);
-            }
-            console.log('attempting to group with tile', tile.id, tile);
+            // console.log('attempting to group with tile', tile.id, tile);
 
             let maxPathCost = stones - 1;
             let possiblePairs = this.findUngroupedTilesWithinDistance(gridAdapter, tile, maxPathCost);
-            console.log('found possible pairs', possiblePairs.slice());
-            if (possiblePairs.length == 0) continue;
+            possiblePairs = possiblePairs.filter(pair => !disallowedTiles.has(this.tileMap.get(pair.id)));
+            // console.log('found possible pairs', possiblePairs.slice());
+            if (possiblePairs.length == 0) return null;
 
             let remainingStones = stones - 1;
             let group: ({id: number, cost: number})[];
@@ -154,7 +142,7 @@ export class LevelGenerator {
                 possiblePairs = possiblePairs.filter(pair => pair.id != added.id && pair.cost <= remainingStones);
             }
 
-            if (dependentMove.length > 0) {
+            if (dependentMove != null) {
                 gridAdapter.ignoreGroupingTiles = dependentMove;
                 let possiblePairsBeforeDependentMove = this.findUngroupedTilesWithinDistance(gridAdapter, tile, maxPathCost);
                 gridAdapter.ignoreGroupingTiles = [];
@@ -169,7 +157,7 @@ export class LevelGenerator {
                 if (newlyPossiblePairs.length == 0) {
                     console.log('no newly possible pairs');
                     // TODO: Need a more robust solution: this can get pretty expensive
-                    continue;
+                    return null;
                 }
                 let toAdd = newlyPossiblePairs[Math.floor(this.random() * newlyPossiblePairs.length)];
                 addPair(toAdd);
@@ -185,7 +173,7 @@ export class LevelGenerator {
                 let added = possiblePairs[addedIndex];
                 addPair(added);
             }
-            console.log('costgroup', group)
+            // console.log('costgroup', group)
 
             let totalCost = group.map(g => g.cost).reduce((a, b) => a + b, 0);
             
@@ -194,13 +182,13 @@ export class LevelGenerator {
             tileGroup.push(tile);
             this.groups.push(tileGroup);
             
-            console.log('grouping', tileGroup.map(tile => tile.id), 'for cost', totalCost, '=>', nextGroupIndex);
+            // console.log('grouping', tileGroup.map(tile => tile.id), 'for cost', totalCost, '=>', nextGroupIndex);
 
             // TODO: May need some special logic to make these, which requires that they
             // maximize use of existing tiles (e.g. maximize grid distance)
             // That could also just be a baseline heuristic
-            let addStone = stones < this.maxStones && groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 3;
-            if (addStone) stones++;
+            // let addStone = stones < this.maxStones && groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 3;
+            // if (addStone) stones++;
 
             tileGroup.forEach(groupTile => {
                 ungroupedTiles.splice(ungroupedTiles.indexOf(groupTile), 1);
@@ -208,13 +196,105 @@ export class LevelGenerator {
                 groupTile.groupIndex = nextGroupIndex;
                 groupTile.groupCount = tileGroup.length;
                 groupedTiles.push(groupTile);
-                if (addStone) groupTile.isStoneTile = true;
+                // if (addStone) groupTile.isStoneTile = true;
             });
-            moves.push(tileGroup);
-
-            console.log('remaining ungrouped tiles', ungroupedTiles.length);
-
             nextGroupIndex++;
+            return tileGroup;
+        }
+
+
+        let addMoveset = () => {
+            let available = new Set<Tile>();
+            ungroupedTiles.forEach(tile => available.add(tile));
+            movesets.forEach(moveset => moveset.footprint.forEach(tile => available.delete(tile)));
+
+            if (available.size == 0) return null;
+
+            let preferredTiles = Array.from(available).filter(tile => {
+                let neighbors = tile.getNeighbors();
+                return neighbors.every(neighbor => available.has(neighbor));
+            });
+
+            if (preferredTiles.length == 0) preferredTiles = Array.from(available);
+            let baseTile = preferredTiles[Math.floor(this.random() * preferredTiles.length)];
+
+            let move = createMove(baseTile);
+            if (move == null) return null;
+
+            let moveset = new Moveset(stones);
+            moveset.addMove(move);
+            return moveset;
+        };
+
+        let createNewMovesets = () => {
+            let reduction = Math.ceil((stones - 2) / 2);
+            let maxMovesets = 5 - reduction, minMovesets = 2 - reduction;
+            let nMovesets= Math.floor(this.random() * (maxMovesets - minMovesets + 1)) + minMovesets;
+            let createdMovesets = 0;
+            for (let i = 0; i < nMovesets; i++) {
+                let moveset = addMoveset();
+                if (moveset != null) {
+                    movesets.push(moveset);
+                    createdMovesets++;
+                }
+            }
+            console.log('created', createdMovesets, 'new movesets');
+            return createdMovesets > 0;
+        };
+
+        let selectNextBaseTile = (moveset: Moveset, disallowedTiles: Set<Tile>) => {
+            let moves = moveset.moves;
+            let index = moves.length - 1;
+            while (index > 0 && this.random() > 0.4) index--;
+            // dependentMove = moves[moves.length - 1];
+            let dependentMove = moves[index];
+            // console.log('dependent move', dependentMove);
+            let possibleStartingTiles = new Set<Tile>();
+            dependentMove.forEach(tile => {
+                this.findUngroupedTilesWithinDistance(gridAdapter, tile, stones - 1)
+                .forEach(pair => possibleStartingTiles.add(this.tileMap.get(pair.id)));
+            });
+            removeAllFrom(possibleStartingTiles, disallowedTiles);
+            // console.log('possible starting tiles', [...possibleStartingTiles.keys()].map(tile => tile.id));
+            dependentMove.forEach(tile => possibleStartingTiles.delete(tile));
+            if (possibleStartingTiles.size == 0) {
+                console.log('no possible starting tiles for dependent move', dependentMove);
+                return null;
+            }
+            let tile = Array.from(possibleStartingTiles)[Math.floor(this.random() * possibleStartingTiles.size)];
+            // console.log('tadm', tile, ...dependentMove);
+            return {tile, dependentMove};
+        };
+
+        // seed with initial movesets
+        createNewMovesets();
+        console.log('initial movesets', movesets);
+
+        // TODO: Still some black tiles - could bail out early with a fix
+        let attempts = 100;
+        while (attempts > 0 && ungroupedTiles.length >= stones && nextGroupIndex < LevelGenerator.maxGroupIndex) {
+            attempts--;
+            
+            let moveset = movesets[Math.floor(this.random() * movesets.length)];
+
+            let disallowedTiles = new Set<Tile>();
+            movesets.forEach(ms => {
+                if (ms == moveset) return;
+                ms.footprint.forEach(tile => disallowedTiles.add(tile));
+            });
+
+            let next = selectNextBaseTile(moveset, disallowedTiles);
+            if (next == null) continue;
+            let {tile, dependentMove} = next;
+            if (disallowedTiles.has(tile)) console.error('disallowed tile', tile);
+            let move = createMove(tile, dependentMove, disallowedTiles);
+            if (move == null) continue;
+            move.forEach(tile => {
+                if (disallowedTiles.has(tile)) console.error('disallowed tile in move', tile);
+            });
+            moveset.addMove(move);
+
+            // TODO: Join movesets, incremenet stones and create new movesets
         }
         return this.grid;
     }
@@ -256,4 +336,16 @@ function incrementWheel(position, sum, numbers, wheel) {
         sum += numbers[position];
     }
     return sum;
+}
+
+function removeAllFrom(set: Set<any>, toRemove: Set<any>) {
+    toRemove.forEach(item => set.delete(item));
+}
+
+function intersect<T>(a: Set<T>, b: Set<T>): Set<T> {
+    let result = new Set<T>();
+    a.forEach(item => {
+        if (b.has(item)) result.add(item);
+    });
+    return result;
 }

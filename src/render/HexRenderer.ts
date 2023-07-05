@@ -15,7 +15,10 @@ export class HexRenderer extends Container {
         this.gridRenderer = gridRenderer;
         this.tile = tile;
 
-        let icon = this.icon = new PIXI.Sprite(PIXI.Texture.from(this.gridRenderer.renderer.iconPathForGroupIndex(tile.groupIndex)));
+        let icon = this.icon = new PIXI.Sprite();
+        if (tile.groupIndex !== undefined) {
+            icon.texture = PIXI.Texture.from(this.gridRenderer.renderer.iconPathForGroupIndex(tile.groupIndex));
+        }
         icon.anchor.set(0.5);
         let iconRatio = 0.6;
         icon.width = tile.width * iconRatio;
@@ -36,7 +39,7 @@ export class HexRenderer extends Container {
         graphics.interactive = true;
 
         graphics.onmouseenter = () => {
-            if (this.tile.unlocked) return;
+            if (this.tile.unlocked || this.tile.groupIndex === undefined) return;
             this.hovered = true;
             this.gridRenderer.updateHover(tile.groupIndex, true);
         }
