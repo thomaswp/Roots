@@ -63,6 +63,14 @@ class Moveset {
         this.stones = stones;
         this.tiles.forEach(tile => this.addFootprint(tile, this.footprint, this.stones));
     }
+
+    add(other: Moveset) {
+        other.tiles.forEach(tile => this.tiles.add(tile));
+        other.footprint.forEach(tile => this.footprint.add(tile));
+        // TODO: need to preserve some sense of order when merging
+        other.moves.forEach(move => this.moves.push(move));
+        // Join the moves of the two movesets, such that the last moves are zippered together
+    }
 }
 
 type Cost = {id: number, cost: number};
@@ -184,12 +192,6 @@ export class LevelGenerator {
             
             // console.log('grouping', tileGroup.map(tile => tile.id), 'for cost', totalCost, '=>', nextGroupIndex);
 
-            // TODO: May need some special logic to make these, which requires that they
-            // maximize use of existing tiles (e.g. maximize grid distance)
-            // That could also just be a baseline heuristic
-            // let addStone = stones < this.maxStones && groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 3;
-            // if (addStone) stones++;
-
             tileGroup.forEach(groupTile => {
                 ungroupedTiles.splice(ungroupedTiles.indexOf(groupTile), 1);
                 if (groupTile.groupIndex != null) console.error("tile already has group index", groupTile.groupIndex);
@@ -228,7 +230,7 @@ export class LevelGenerator {
 
         let createNewMovesets = () => {
             let reduction = Math.ceil((stones - 2) / 2);
-            let maxMovesets = 5 - reduction, minMovesets = 2 - reduction;
+            let maxMovesets = 4 - reduction, minMovesets = Math.max(0, 1 - reduction);
             let nMovesets= Math.floor(this.random() * (maxMovesets - minMovesets + 1)) + minMovesets;
             let createdMovesets = 0;
             for (let i = 0; i < nMovesets; i++) {
@@ -246,7 +248,6 @@ export class LevelGenerator {
             let moves = moveset.moves;
             let index = moves.length - 1;
             while (index > 0 && this.random() > 0.4) index--;
-            // dependentMove = moves[moves.length - 1];
             let dependentMove = moves[index];
             // console.log('dependent move', dependentMove);
             let possibleStartingTiles = new Set<Tile>();
@@ -266,16 +267,24 @@ export class LevelGenerator {
             return {tile, dependentMove};
         };
 
+        let allowUnions = () => {
+            // TODO: May need some special logic to make these, which requires that they
+            // maximize use of existing tiles (e.g. maximize grid distance)
+            // That could also just be a baseline heuristic
+            return groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 2.5;
+        }
+
         // seed with initial movesets
         createNewMovesets();
         console.log('initial movesets', movesets);
 
         // TODO: Still some black tiles - could bail out early with a fix
-        let attempts = 100;
+        let attempts = 500;
         while (attempts > 0 && ungroupedTiles.length >= stones && nextGroupIndex < LevelGenerator.maxGroupIndex) {
             attempts--;
             
             let moveset = movesets[Math.floor(this.random() * movesets.length)];
+            let priorFootprint = new Set(moveset.footprint);
 
             let disallowedTiles = new Set<Tile>();
             movesets.forEach(ms => {
@@ -287,13 +296,33 @@ export class LevelGenerator {
             if (next == null) continue;
             let {tile, dependentMove} = next;
             if (disallowedTiles.has(tile)) console.error('disallowed tile', tile);
-            let move = createMove(tile, dependentMove, disallowedTiles);
+            let move = createMove(tile, dependentMove, allowUnions() ? new Set() : disallowedTiles);
             if (move == null) continue;
-            move.forEach(tile => {
-                if (disallowedTiles.has(tile)) console.error('disallowed tile in move', tile);
-            });
             moveset.addMove(move);
 
+            // If a tile was places outside of the footprint of the moveset (before this move)
+            // then it must have been connecting with another moveset
+            if (move.some(tile => !priorFootprint.has(tile))) {
+                for (let i = 0; i < movesets.length; i++) {
+                    let ms = movesets[i];
+                    if (ms == moveset) continue;
+                    if (ms.footprint.has(tile)) {
+                        moveset.add(ms);
+                        movesets.splice(i, 1);
+                        i--;
+                        break;
+                    }
+                };
+                if (stones < this.maxStones) {
+                    move.forEach(tile => {
+                        tile.isStoneTile  = true;
+                    });
+                    stones++;
+                    movesets.forEach(ms => ms.setStones(stones));
+                }
+                createNewMovesets();
+            }
+            
             // TODO: Join movesets, incremenet stones and create new movesets
         }
         return this.grid;
