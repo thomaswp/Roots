@@ -1,4 +1,4 @@
-import { Grid, rectangle } from "honeycomb-grid";
+import { Grid, Traverser, rectangle, spiral } from "honeycomb-grid";
 import { Tile } from "./Tile";
 import { Edge, dijkstra, IGraphAdapter } from "../util/Dijkstra";
 import seedrandom from 'seedrandom'
@@ -51,12 +51,11 @@ class Moveset {
         });
     }
 
-    private addFootprint(tile: Tile, footprint: Set<Tile>, recurse: number = 0) {
-        if (recurse < 0) return;
-        footprint.add(tile);
-        if (recurse > 0) {
-            tile.getNeighbors().forEach(neighbor => this.addFootprint(neighbor, footprint, recurse - 1));
-        }
+    private addFootprint(tile: Tile, footprint: Set<Tile>, radius: number = 0) {
+        const spiralTraverser = spiral({ start: tile, radius }) as Traverser<Tile>;
+        tile.grid.traverse(spiralTraverser).forEach(neighbor => {
+            footprint.add(neighbor); 
+        });
     }
 
     setStones(stones: number) {
@@ -112,7 +111,7 @@ export class LevelGenerator {
             this.tileMap.set(tile.id, tile);
         });
 
-        this.random = seedrandom("1231");
+        this.random = seedrandom("1234a");
     }
 
     private findUngroupedTilesWithinDistance(adapter: GridAdapter, tile: Tile, distance: number): Cost[] {
@@ -139,7 +138,7 @@ export class LevelGenerator {
 
         let stones = 2;
 
-        let createMove = (tile: Tile, dependentMove: Tile[] = null, disallowedTiles: Set<Tile> = new Set()) => {
+        let createMove = (tile: Tile, dependentMove: Tile[] = null, disallowedTiles: Set<Tile> = new Set(), maximizeCostGain = false) => {
 
             // console.log('attempting to group with tile', tile.id, tile);
 
@@ -176,7 +175,21 @@ export class LevelGenerator {
                     // TODO: Need a more robust solution: this can get pretty expensive
                     return null;
                 }
+                
                 let toAdd = newlyPossiblePairs[Math.floor(this.random() * newlyPossiblePairs.length)];
+                if (maximizeCostGain) {
+                    let costGain = (cost: Cost) => {
+                        let costBefore = costMap.get(cost.id);
+                        if (costBefore == null) costBefore = Number.POSITIVE_INFINITY;
+                        return costBefore - cost.cost;
+                    }
+
+                    // Sort from largest to smallest cost gain
+                    newlyPossiblePairs.sort((a, b) => {
+                        return costGain(b) - costGain(a);
+                    });
+                    toAdd = newlyPossiblePairs[0];
+                }
                 addPair(toAdd);
             }
 
@@ -253,10 +266,13 @@ export class LevelGenerator {
             return createdMovesets > 0;
         };
 
-        let selectNextBaseTile = (moveset: Moveset, disallowedTiles: Set<Tile>) => {
+        let selectNextBaseTile = (moveset: Moveset, disallowedTiles: Set<Tile>, useMostRecentMove = false) => {
             let moves = moveset.moves;
             let index = moves.length - 1;
-            while (index > 0 && this.random() > 0.4) index--;
+            if (!useMostRecentMove) {
+                while (index > 0 && this.random() > 0.4) index--;
+            }
+
             let dependentMove = moves[index];
             // console.log('dependent move', dependentMove);
             let possibleStartingTiles = new Set<Tile>();
@@ -280,6 +296,7 @@ export class LevelGenerator {
         let maxAttempts = 50;
         let attemptsSinceLastProgress = 0;
         let allowUnions = false;
+        let stoneMoveset = null as Moveset;
 
         let updateAllowUnions = () => {
             if (groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 2.5) {
@@ -304,7 +321,14 @@ export class LevelGenerator {
             }
             
             let moveset = movesets[Math.floor(this.random() * movesets.length)];
-            let priorFootprint = new Set(moveset.footprint);
+
+            // If set have a moveset marked to add a stone, use that moveset
+            // TODO: Could add some randomness
+            let addStone = stoneMoveset != null;
+            if (addStone) {
+                moveset = stoneMoveset;
+                stoneMoveset = null;
+            }
 
             let disallowedTiles = new Set<Tile>();
             movesets.forEach(ms => {
@@ -312,15 +336,25 @@ export class LevelGenerator {
                 ms.footprint.forEach(tile => disallowedTiles.add(tile));
             });
 
-            let next = selectNextBaseTile(moveset, disallowedTiles);
+            let next = selectNextBaseTile(moveset, disallowedTiles, addStone);
             if (next == null) continue;
             let {tile, dependentMove} = next;
             if (disallowedTiles.has(tile)) console.error('disallowed tile', tile);
-            let move = createMove(tile, dependentMove, allowUnions ? new Set() : disallowedTiles);
+            let move = createMove(tile, dependentMove, allowUnions ? new Set() : disallowedTiles, addStone);
             if (move == null) continue;
             moveset.addMove(move);
             attemptsSinceLastProgress = 0;
             updateAllowUnions();
+
+            if (addStone) {
+                move.forEach(tile => {
+                    tile.isStoneTile  = true;
+                });
+                stones++;
+                movesets.forEach(ms => ms.setStones(stones));
+                createNewMovesets();
+                stoneMoveset = null;
+            }
 
             if (!allowUnions) continue;
 
@@ -341,18 +375,13 @@ export class LevelGenerator {
                     combined = true;
                 }
             };
-            if (combined) allowUnions = false;
-            // TODO: Maybe add some probability here so it's not always the case.
-            // (but would need to be dependent on number of remaining groups, to make
-            // sure it happens eventually)
-            if (combined && stones < this.maxStones) {
-                move.forEach(tile => {
-                    tile.isStoneTile  = true;
-                });
-                stones++;
-                movesets.forEach(ms => ms.setStones(stones));
-                createNewMovesets();
-            }
+            if (!combined) continue;
+
+            // No more new unions until the criteria are met
+            allowUnions = false;
+            // If possible, queue the algorithm to use this moveset and add
+            // a stone next time
+            if (stones < this.maxStones) stoneMoveset = moveset;
         }
         return this.grid;
     }
