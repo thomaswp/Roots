@@ -3,6 +3,7 @@ import { Roots } from '../roots/Roots';
 import { GridRenderer } from './GridRender';
 import { animalIcons } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
+import seedrandom from 'seedrandom'
 
 export class GameRenderer {
     
@@ -22,6 +23,8 @@ export class GameRenderer {
     }
 
     initGroups() {
+        let rng: () => number = seedrandom(this.game.seed);
+
         let nBasicColors = 5;
         let basicColors = Array.from(new Array(nBasicColors).keys()).map(i => {
             return new PIXI.Color({h: i * 360 / nBasicColors, s: 85, v: 100});
@@ -34,7 +37,7 @@ export class GameRenderer {
         let paths = animalIcons.split('\n').filter(s => s.length > 0).map(s => s.trim());
         // shuffle paths
         for (let i = paths.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = Math.floor(rng() * (i + 1));
             [paths[i], paths[j]] = [paths[j], paths[i]];
         }
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())

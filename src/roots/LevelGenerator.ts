@@ -88,21 +88,20 @@ export class LevelGenerator {
     width: number;
     height: number;
     grid: Grid<Tile>;
-    groups: Tile[][];
     tileMap: Map<number, Tile> = new Map();
+    seed: string;
     random: () => number;
 
     maxStones = 6;
 
     static readonly maxGroupIndex = 200;
 
-    constructor(width: number, height: number) {
+    constructor(seed: string, width: number, height: number) {
         console.log(findSubsetsThatSumTo);
         this.width = width;
         this.height = height;
 
-        this.grid = new Grid(Tile, rectangle({ width: 20, height: 15 }));
-        this.groups = [];
+        this.grid = new Grid(Tile, rectangle({ width: width, height: height }));
 
         let id = 0;
         this.grid.forEach(tile => {
@@ -111,7 +110,8 @@ export class LevelGenerator {
             this.tileMap.set(tile.id, tile);
         });
 
-        this.random = seedrandom("1234a");
+        this.seed = seed;
+        this.random = seedrandom(seed);
     }
 
     private findUngroupedTilesWithinDistance(adapter: GridAdapter, tile: Tile, distance: number): Cost[] {
@@ -210,7 +210,6 @@ export class LevelGenerator {
             let tileGroup = group
             .map(g => this.tileMap.get(g.id));
             tileGroup.push(tile);
-            this.groups.push(tileGroup);
             
             console.log('grouping', tileGroup.map(tile => tile.id), 'for cost', totalCost, '=>', nextGroupIndex);
 
@@ -218,7 +217,6 @@ export class LevelGenerator {
                 ungroupedTiles.splice(ungroupedTiles.indexOf(groupTile), 1);
                 if (groupTile.groupIndex != null) console.error("tile already has group index", groupTile.groupIndex);
                 groupTile.groupIndex = nextGroupIndex;
-                groupTile.groupCount = tileGroup.length;
                 groupedTiles.push(groupTile);
                 // if (addStone) groupTile.isStoneTile = true;
             });

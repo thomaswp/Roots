@@ -1,17 +1,39 @@
 import { Grid, defineHex } from "honeycomb-grid";
 import { Roots } from "./Roots";
 
+export type TileData = {
+    unlocked: boolean;
+    groupIndex: number;
+    isStoneTile: boolean;
+}
+
 export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
   
-    // this property is present in the instance
+    // serializable fields
     id: number;
-    grid: Grid<Tile>;
-    unlocked: boolean = false;
-    active: boolean = false;
     groupIndex: number;
+    isStoneTile: boolean = false;
+    unlocked: boolean = false;
+
+    grid: Grid<Tile>;
+    active: boolean = false;
     groupCount: number;
     game: Roots;
-    isStoneTile: boolean = false;
+
+    serialize(): TileData {
+        return {
+            unlocked: this.unlocked,
+            groupIndex: this.groupIndex,
+            isStoneTile: this.isStoneTile,
+        };
+    }
+
+    deserialize(id: number, data: TileData) {
+        this.id = id;
+        this.unlocked = data.unlocked;
+        this.groupIndex = data.groupIndex;
+        this.isStoneTile = data.isStoneTile;
+    }
   
     isPassable() {
         return this.active || this.unlocked;

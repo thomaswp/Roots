@@ -1,41 +1,94 @@
 import { defineHex, Direction, Grid, rectangle } from "honeycomb-grid";
-import { Tile } from "./Tile";
-import e from "express";
+import { Tile, TileData } from "./Tile";
 import { Clustering } from "./Clustering";
 import { LevelGenerator } from "./LevelGenerator";
 
+export type GameData = {
+    seed: string;
+    width: number;
+    height: number;
+    tiles: TileData[];
+    nStones: number;
+}
+
 export class Roots {
 
+    // serializable fields
+    width = 20;
+    height = 15;
+    seed: string;
     grid: Grid<Tile>;
+    nStones = 2;
+    
+    // derived fields
+    groups: Tile[][] = [];
     clustering: Clustering = new Clustering();
     backupClustering: Clustering;
+
+    // client-only fields
+    // TODO: Consider just passing this from the renderer
     activeTiles: Tile[] = [];
-    groups: Tile[][];
 
     onNeedRefresh: () => void;
+    onNeedSave: (data: GameData) => void;
 
-    constructor() {
-        let generator = new LevelGenerator(20, 15);
+    constructor(seed: string) {
+        this.seed = seed;
+    }
+
+    createNewLevel() {
+        let generator = new LevelGenerator(this.seed, this.width, this.height);
         this.grid = generator.generate();
-        this.groups = generator.groups;
+        this.initializeGrid();
+        this.save();
+    }
 
+    private initializeGrid() {
         this.grid.forEach(tile => {
             tile.game = this;
+            tile.grid = this.grid;
+            if (!this.groups[tile.groupIndex]) {
+                this.groups[tile.groupIndex] = [];
+            }
+            this.groups[tile.groupIndex].push(tile);
+            if (tile.unlocked) {
+                this.clustering.addTileAndConnectNeighbors(tile);
+            }
+        });
+        this.grid.forEach(tile => {
+            tile.groupCount = this.groups[tile.groupIndex].length;
         });
     }
 
-    addToClustering(tile: Tile) {
-        let mergedClusters = [this.clustering.addNewCluster(tile.id)];
-        let neighbors = tile.getPassableNeighbors();
-        for (let neighbor of neighbors) {
-            let neighborClusterIndex = this.clustering.getClusterIndex(neighbor.id);
-            if (neighborClusterIndex === undefined) continue;
-            if (!mergedClusters.includes(neighborClusterIndex)) {
-                mergedClusters.push(neighborClusterIndex);
-            }
-        }
-        // console.log(mergedClusters);
-        this.clustering.join(mergedClusters);
+    save() {
+        let data = this.serialize();
+        console.log('saving...', data);
+        this.onNeedSave(this.serialize());
+    }
+
+    serialize() : GameData {
+        return {
+            seed: this.seed,
+            width: this.width,
+            height: this.height,
+            tiles: this.grid.toArray().map(tile => tile.serialize()),
+            nStones: this.nStones,
+        };
+    }
+
+    deserialize(data: GameData) {
+        console.log('loading...', data);
+        this.seed = data.seed;
+        this.nStones = data.nStones;
+        this.width = data.width;
+        this.height = data.height;
+        this.grid = new Grid(Tile, rectangle({ width: data.width, height: data.height }));
+        let i = 0;
+        this.grid.forEach(tile => {
+            tile.deserialize(i, data.tiles[i++]);
+        });
+        this.initializeGrid();
+        console.log('finished loading', this);
     }
 
     // Either this or "Check Connections" still has a bug in it - need to find it
@@ -46,15 +99,17 @@ export class Roots {
             this.clustering = this.backupClustering.copy();
             this.activeTiles.forEach(tile => {
                 // console.log(JSON.stringify(this.clustering), tile.id);
-                this.addToClustering(tile);
+                this.clustering.addTileAndConnectNeighbors(tile);
             });
         } else {
+            if (this.activeTiles.length >= this.nStones) return;
+            console.log(this.activeTiles.length, this.nStones);
             tile.active = true;
             this.activeTiles.push(tile);
             if (this.backupClustering == null) {
                 this.backupClustering = this.clustering.copy();
             }
-            this.addToClustering(tile);
+            this.clustering.addTileAndConnectNeighbors(tile);
             this.checkConnections();
         }
         // console.log(this.clustering.clusters);
@@ -81,12 +136,16 @@ export class Roots {
                 });
                 if (group.length > 1) clear = true;
                 refresh = true;
+                if (group[0].isStoneTile) {
+                    this.nStones++;
+                }
                 // console.log('unlocked group ' + groupIndex);
             }
         }
 
         this.clearActive(!clear);
         if (refresh) {
+            this.save();
             this.onNeedRefresh();
         }
     }
@@ -99,7 +158,7 @@ export class Roots {
         let toRestore = [];
         this.activeTiles.forEach(tile => {
             if (tile.unlocked) {
-                this.addToClustering(tile);
+                this.clustering.addTileAndConnectNeighbors(tile);
             } else {
                 toRestore.push(tile);
             }
@@ -111,7 +170,7 @@ export class Roots {
             toRestore.forEach(tile => {
                 tile.active = true;
                 this.activeTiles.push(tile);
-                this.addToClustering(tile);
+                this.clustering.addTileAndConnectNeighbors(tile);
             });
         }
     }

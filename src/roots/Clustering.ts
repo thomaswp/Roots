@@ -1,3 +1,4 @@
+import { Tile } from "./Tile";
 
 export class Clustering {
     // map: Map<number, number>;
@@ -15,11 +16,25 @@ export class Clustering {
         return index;
     }
 
-    addNewCluster(id: number) {
+    addNewCluster(tileID: number) {
         let clusterID = this.clusters.length
         // this.map.set(id, clusterID);
-        this.clusters.push([id]);
+        this.clusters.push([tileID]);
         return clusterID;
+    }
+
+    addTileAndConnectNeighbors(tile: Tile) {
+        let mergedClusters = [this.addNewCluster(tile.id)];
+        let neighbors = tile.getPassableNeighbors();
+        for (let neighbor of neighbors) {
+            let neighborClusterIndex = this.getClusterIndex(neighbor.id);
+            if (neighborClusterIndex === undefined) continue;
+            if (!mergedClusters.includes(neighborClusterIndex)) {
+                mergedClusters.push(neighborClusterIndex);
+            }
+        }
+        // console.log(mergedClusters);
+        this.join(mergedClusters);
     }
     
     join(clusterIDs: number[]) {
