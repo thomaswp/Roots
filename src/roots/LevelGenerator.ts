@@ -92,7 +92,7 @@ export class LevelGenerator {
     seed: string;
     random: () => number;
 
-    maxStones = 6;
+    static readonly maxStones = 6;
 
     static readonly maxGroupIndex = 200;
 
@@ -379,7 +379,7 @@ export class LevelGenerator {
             allowUnions = false;
             // If possible, queue the algorithm to use this moveset and add
             // a stone next time
-            if (stones < this.maxStones) stoneMoveset = moveset;
+            if (stones < LevelGenerator.maxStones) stoneMoveset = moveset;
         }
         return this.grid;
     }
