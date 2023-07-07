@@ -51,14 +51,17 @@ export class HexRenderer extends Container {
             console.log('right clicked', tile.id);
             this.gridRenderer.renderer.game.clearSelection();
         }
-
-        graphics.onclick = (e) => {            
-            tile.clicked();
+        let lastCliked = 0;
+        graphics.onclick = (e) => {
+            console.log('clicked', tile.id);
+            let doubleClick = Date.now() - lastCliked < 400;
+            // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
+            lastCliked = Date.now();
+            tile.clicked(doubleClick);
             // this.hovered = false;
             // this.gridRenderer.updateHover(tile.groupIndex, false);
             this.redraw();
             this.gridRenderer.renderer.updateStones();
-            console.log('clicked', tile.id);
         }
     }
 

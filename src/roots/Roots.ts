@@ -97,16 +97,11 @@ export class Roots {
     }
 
     // Either this or "Check Connections" still has a bug in it - need to find it
-    tileClicked(tile: Tile) {
-        if (tile.active) {
-            tile.active = false;
-            this.activeTiles.splice(this.activeTiles.indexOf(tile), 1);
-            this.clustering = this.backupClustering.copy();
-            this.activeTiles.forEach(tile => {
-                // console.log(JSON.stringify(this.clustering), tile.id);
-                this.clustering.addTileAndConnectNeighbors(tile);
-            });
-        } else {
+    tileClicked(tile: Tile, activateWholeGroup: boolean = false) {
+        // If an inactive tile is clicked, activate it
+        if (!tile.active) {
+            // console.log('activating', tile);
+            // console.log(this.activeTiles);
             if (this.activeTiles.length >= this.nStones) return;
             // console.log(this.activeTiles.length, this.nStones);
             tile.active = true;
@@ -116,9 +111,29 @@ export class Roots {
             }
             this.clustering.addTileAndConnectNeighbors(tile);
             this.checkConnections();
-            console.log(this.clustering);
+            // console.log(this.clustering);
+
+        // Otherwise, unless this is a double-click, deactivate it
+        } else if (!activateWholeGroup) {
+            tile.active = false;
+            this.activeTiles.splice(this.activeTiles.indexOf(tile), 1);
+            this.clustering = this.backupClustering.copy();
+            this.activeTiles.forEach(tile => {
+                // console.log(JSON.stringify(this.clustering), tile.id);
+                this.clustering.addTileAndConnectNeighbors(tile);
+            });
         }
-        // console.log(this.clustering.clusters);
+        
+        // Either way, if this is a double-click, try to activate the whole group
+        if (activateWholeGroup) {
+            let unclickedTiles = this.groups[tile.groupIndex].filter(t => !t.active);
+            // console.log('Considering ', unclickedTiles.length, unclickedTiles)
+            if (this.nStones - this.activeTiles.length >= unclickedTiles.length) {
+                // console.log("go!!");
+                unclickedTiles.forEach(tile => this.tileClicked(tile));
+            }
+            this.onNeedRefresh();
+        }
     }
 
     clearSelection() {
@@ -139,7 +154,7 @@ export class Roots {
             let groupIndex = activeGroupIndices[i];
             let group = this.groups[groupIndex];
             let clusterIndex = this.clustering.getClusterIndex(group[0].id);
-            console.log(group, group.map(tile => this.clustering.getClusterIndex(tile.id)));
+            // console.log(group, group.map(tile => this.clustering.getClusterIndex(tile.id)));
             if (group.every(tile => {
                 return this.activeTiles.includes(tile) &&
                     clusterIndex === this.clustering.getClusterIndex(tile.id);

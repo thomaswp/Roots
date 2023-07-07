@@ -39,9 +39,9 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
         return this.active || this.unlocked;
     }
 
-    clicked() {
+    clicked(doubleClick: boolean = false) {
         if (this.unlocked) return;
-        this.game.tileClicked(this);
+        this.game.tileClicked(this, doubleClick);
     }
 
     getNeighbors(): Tile[] {
