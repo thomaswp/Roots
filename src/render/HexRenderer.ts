@@ -2,6 +2,7 @@ import * as PIXI from "pixi.js";
 import { Container } from "pixi.js";
 import { Tile } from "../roots/Tile";
 import { GridRenderer } from "./GridRender";
+import { GameRenderer } from "./GameRenderer";
 
 export class HexRenderer extends Container {
     tile: Tile;
@@ -10,6 +11,14 @@ export class HexRenderer extends Container {
     hovered: boolean = false;
     gridRenderer: GridRenderer;
 
+    get renderer() : GameRenderer {
+        return this.gridRenderer.renderer;
+    }
+
+    get active() : boolean {
+        return this.renderer.isTileActive(this.tile);
+    }
+
     constructor(tile: Tile, gridRenderer: GridRenderer) {
         super();
         this.gridRenderer = gridRenderer;
@@ -17,7 +26,7 @@ export class HexRenderer extends Container {
 
         let icon = this.icon = new PIXI.Sprite();
         if (tile.groupIndex !== undefined) {
-            icon.texture = PIXI.Texture.from(this.gridRenderer.renderer.iconPathForGroupIndex(tile.groupIndex));
+            icon.texture = PIXI.Texture.from(this.renderer.iconPathForGroupIndex(tile.groupIndex));
         }
         icon.anchor.set(0.5);
         let iconRatio = 0.6;
@@ -34,7 +43,7 @@ export class HexRenderer extends Container {
         this.x = -tile.center.x;
         this.y = -tile.center.y;
 
-        this.redraw();
+        this.refresh();
 
         graphics.interactive = true;
 
@@ -48,28 +57,33 @@ export class HexRenderer extends Container {
             this.gridRenderer.updateHover(tile.groupIndex, false);
         }
         graphics.onrightclick = (e) => {
-            console.log('right clicked', tile.id);
-            this.gridRenderer.renderer.game.clearSelection();
+            this.renderer.clearActiveTiles();
         }
-
-        graphics.onclick = (e) => {            
-            tile.clicked();
-            // this.hovered = false;
-            // this.gridRenderer.updateHover(tile.groupIndex, false);
-            this.redraw();
-            this.gridRenderer.renderer.updateStones();
+        let lastCliked = 0;
+        graphics.onclick = (e) => {
             console.log('clicked', tile.id);
+            let doubleClick = Date.now() - lastCliked < 400;
+            // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
+            lastCliked = Date.now();
+            if (doubleClick) {
+                this.renderer.activateGroup(tile);
+            } else if (!this.active) {
+                this.renderer.activateTile(tile);
+            } else {
+                this.renderer.deactivateTile(tile);
+            }
+            this.refresh();
         }
     }
 
     
 
-    redraw() {
+    refresh() {
         
         let tile = this.tile;
         let hex = this.hex;
 
-        let active = tile.unlocked || tile.active;
+        let active = tile.unlocked || this.active;
 
         let color = this.gridRenderer.renderer.colorForGroupIndex(tile.groupCount - 2);
         if (tile.isStoneTile) color = new PIXI.Color(0x888888);
@@ -80,7 +94,7 @@ export class HexRenderer extends Container {
             lineColor = 0xeeeeee;
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
-        } else if (tile.active) {
+        } else if (this.active) {
             lineColor = 0xff00ff;
             zIndex = 2;
         } else if (this.gridRenderer.hoverGroupIndex === tile.groupIndex) {

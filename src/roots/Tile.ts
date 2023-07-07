@@ -16,7 +16,7 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
     unlocked: boolean = false;
 
     grid: Grid<Tile>;
-    active: boolean = false;
+    // active: boolean = false;
     groupCount: number;
     game: Roots;
 
@@ -35,14 +35,14 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
         this.isStoneTile = data.isStoneTile;
     }
   
-    isPassable() {
-        return this.active || this.unlocked;
-    }
+    // isPassable() {
+    //     return this.active || this.unlocked;
+    // }
 
-    clicked() {
-        if (this.unlocked) return;
-        this.game.tileClicked(this);
-    }
+    // clicked(doubleClick: boolean = false) {
+    //     if (this.unlocked) return;
+    //     this.game.tileClicked(this, doubleClick);
+    // }
 
     getNeighbors(): Tile[] {
         let neighbors = [];
@@ -54,9 +54,4 @@ export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
         }
         return neighbors;
     }
-
-    getPassableNeighbors() {
-        return this.getNeighbors().filter(neighbor => neighbor.isPassable());
-    }
-
 }

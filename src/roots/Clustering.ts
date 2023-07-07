@@ -23,9 +23,9 @@ export class Clustering {
         return clusterID;
     }
 
-    addTileAndConnectNeighbors(tile: Tile) {
+    addTileAndConnectNeighbors(tile: Tile, isPassable: (tile: Tile) => boolean = tile => tile.unlocked) {
         let mergedClusters = [this.addNewCluster(tile.id)];
-        let neighbors = tile.getPassableNeighbors();
+        let neighbors = tile.getNeighbors().filter(isPassable);
         for (let neighbor of neighbors) {
             let neighborClusterIndex = this.getClusterIndex(neighbor.id);
             if (neighborClusterIndex === undefined) continue;
