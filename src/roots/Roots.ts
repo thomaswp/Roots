@@ -67,7 +67,7 @@ export class Roots {
 
     save() {
         let data = this.serialize();
-        console.log('saving...', data);
+        // console.log('saving...', data);
         this.onNeedSave(this.serialize());
     }
 
@@ -133,7 +133,7 @@ export class Roots {
         activeGroupIndices = activeGroupIndices.filter((value, index, self) => self.indexOf(value) === index);
         if (activeGroupIndices.length === 0) return;
 
-        console.log('checking connections', activeGroupIndices);
+        // console.log('checking connections', activeGroupIndices);
         let clear = false, refresh = false;
         for (let i = 0; i < activeGroupIndices.length; i++) {
             let groupIndex = activeGroupIndices[i];
