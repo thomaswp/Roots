@@ -23,18 +23,15 @@ export class Roots {
     // derived fields
     groups: Tile[][] = [];
     clustering: Clustering = new Clustering();
-    backupClustering: Clustering;
+    // backupClustering: Clustering;
 
     // client-only fields
     // TODO: Consider just passing this from the renderer
-    activeTiles: Tile[] = [];
+    // activeTiles: Tile[] = [];
 
     onNeedRefresh: () => void;
     onNeedSave: (data: GameData) => void;
 
-    get nFreeStones() {
-        return this.nStones - this.activeTiles.length;
-    }
 
     constructor(seed: string) {
         this.seed = seed;
@@ -96,110 +93,122 @@ export class Roots {
         console.log('finished loading', this);
     }
 
-    // Either this or "Check Connections" still has a bug in it - need to find it
-    tileClicked(tile: Tile, activateWholeGroup: boolean = false) {
-        // If an inactive tile is clicked, activate it
-        if (!tile.active) {
-            // console.log('activating', tile);
-            // console.log(this.activeTiles);
-            if (this.activeTiles.length >= this.nStones) return;
-            // console.log(this.activeTiles.length, this.nStones);
-            tile.active = true;
-            this.activeTiles.push(tile);
-            if (this.backupClustering == null) {
-                this.backupClustering = this.clustering.copy();
-            }
-            this.clustering.addTileAndConnectNeighbors(tile);
-            this.checkConnections();
-            // console.log(this.clustering);
 
-        // Otherwise, unless this is a double-click, deactivate it
-        } else if (!activateWholeGroup) {
-            tile.active = false;
-            this.activeTiles.splice(this.activeTiles.indexOf(tile), 1);
-            this.clustering = this.backupClustering.copy();
-            this.activeTiles.forEach(tile => {
-                // console.log(JSON.stringify(this.clustering), tile.id);
-                this.clustering.addTileAndConnectNeighbors(tile);
-            });
-        }
+    // // Either this or "Check Connections" still has a bug in it - need to find it
+    // tileClicked(tile: Tile, activateWholeGroup: boolean = false) {
+    //     // If an inactive tile is clicked, activate it
+    //     if (!tile.active) {
+    //         // console.log('activating', tile);
+    //         // console.log(this.activeTiles);
+    //         if (this.activeTiles.length >= this.nStones) return;
+    //         // console.log(this.activeTiles.length, this.nStones);
+    //         tile.active = true;
+    //         this.activeTiles.push(tile);
+    //         if (this.backupClustering == null) {
+    //             this.backupClustering = this.clustering.copy();
+    //         }
+    //         this.clustering.addTileAndConnectNeighbors(tile);
+    //         this.checkConnections();
+    //         // console.log(this.clustering);
+
+    //     // Otherwise, unless this is a double-click, deactivate it
+    //     } else if (!activateWholeGroup) {
+    //         tile.active = false;
+    //         this.activeTiles.splice(this.activeTiles.indexOf(tile), 1);
+    //         this.clustering = this.backupClustering.copy();
+    //         this.activeTiles.forEach(tile => {
+    //             // console.log(JSON.stringify(this.clustering), tile.id);
+    //             this.clustering.addTileAndConnectNeighbors(tile);
+    //         });
+    //     }
         
-        // Either way, if this is a double-click, try to activate the whole group
-        if (activateWholeGroup) {
-            let unclickedTiles = this.groups[tile.groupIndex].filter(t => !t.active);
-            // console.log('Considering ', unclickedTiles.length, unclickedTiles)
-            if (this.nStones - this.activeTiles.length >= unclickedTiles.length) {
-                // console.log("go!!");
-                unclickedTiles.forEach(tile => this.tileClicked(tile));
-            }
-            this.onNeedRefresh();
-        }
-    }
+    //     // Either way, if this is a double-click, try to activate the whole group
+    //     if (activateWholeGroup) {
+    //         let unclickedTiles = this.groups[tile.groupIndex].filter(t => !t.active);
+    //         // console.log('Considering ', unclickedTiles.length, unclickedTiles)
+    //         if (this.nStones - this.activeTiles.length >= unclickedTiles.length) {
+    //             // console.log("go!!");
+    //             unclickedTiles.forEach(tile => this.tileClicked(tile));
+    //         }
+    //         this.onNeedRefresh();
+    //     }
+    // }
 
-    clearSelection() {
-        this.clearActive(false);
-        this.onNeedRefresh();
-    }
+    // clearSelection() {
+    //     this.clearActive(false);
+    //     this.onNeedRefresh();
+    // }
 
-    checkConnections() {
-        let activeGroupIndices = this.activeTiles.map(tile => tile.groupIndex);
+    tryActivating(activeTiles: Set<Tile>) : boolean {
+        let testClustering = this.clustering.copy();
+        activeTiles.forEach(tile => testClustering.addTileAndConnectNeighbors(tile, t => {
+            return t.unlocked || activeTiles.has(t);
+        }));
+
+        let activeGroupIndices = [...activeTiles.keys()].map(tile => tile.groupIndex);
         activeGroupIndices = activeGroupIndices.filter(groupIndex => groupIndex !== undefined);
         // remove duplicates
         activeGroupIndices = activeGroupIndices.filter((value, index, self) => self.indexOf(value) === index);
         if (activeGroupIndices.length === 0) return;
 
         // console.log('checking connections', activeGroupIndices);
-        let clear = false, refresh = false;
         for (let i = 0; i < activeGroupIndices.length; i++) {
             let groupIndex = activeGroupIndices[i];
             let group = this.groups[groupIndex];
-            let clusterIndex = this.clustering.getClusterIndex(group[0].id);
-            // console.log(group, group.map(tile => this.clustering.getClusterIndex(tile.id)));
-            if (group.every(tile => {
-                return this.activeTiles.includes(tile) &&
-                    clusterIndex === this.clustering.getClusterIndex(tile.id);
-            })) {
-                group.forEach(tile => {
-                    tile.unlocked = true
-                });
-                if (group.length > 1) clear = true;
-                refresh = true;
-                if (group[0].isStoneTile) {
-                    this.nStones++;
-                }
-                // console.log('unlocked group ' + groupIndex);
+            // First check if the whole group is active
+            if (!group.every(tile => activeTiles.has(tile))) continue;
+            let clusterIndex = testClustering.getClusterIndex(group[0].id);
+            // console.log(group, group.map(tile => testClustering.getClusterIndex(tile.id)));
+            if (clusterIndex === undefined) {
+                console.error('clusterIndex is undefined for group', groupIndex, group, activeTiles);
+                continue;
             }
-        }
-
-        if (refresh) {
-            this.clearActive(!clear);
-            this.save();
-            this.onNeedRefresh();
-        }
-    }
-
-    clearActive(restoreActive: boolean) {
-        if (this.backupClustering != null) {
-            this.clustering = this.backupClustering.copy();
-        }
-        this.backupClustering = null;
-        let toRestore = [];
-        this.activeTiles.forEach(tile => {
-            if (tile.unlocked) {
-                this.clustering.addTileAndConnectNeighbors(tile);
-            } else {
-                toRestore.push(tile);
-            }
-            tile.active = false;
-        });
-        this.activeTiles = [];
-        if (restoreActive) {
-            this.backupClustering = this.clustering.copy();
-            toRestore.forEach(tile => {
-                tile.active = true;
-                this.activeTiles.push(tile);
+            // Then check if the whole group is in the same cluster (i.e. connected)
+            if (!group.every(tile => {
+                return clusterIndex === testClustering.getClusterIndex(tile.id);
+            })) continue;
+            
+            // First mark all as unlocked
+            group.forEach(tile => {
+                tile.unlocked = true;
+            });
+            // Then add to the permenant clustering
+            group.forEach(tile => {
                 this.clustering.addTileAndConnectNeighbors(tile);
             });
+            if (group[0].isStoneTile) {
+                this.nStones++;
+            }
+            this.save();
+            this.onNeedRefresh();
+            // console.log('unlocked group ' + groupIndex);
+            return true;
         }
+        return false;
     }
+
+    // clearActive(restoreActive: boolean) {
+    //     if (this.backupClustering != null) {
+    //         this.clustering = this.backupClustering.copy();
+    //     }
+    //     this.backupClustering = null;
+    //     let toRestore = [];
+    //     this.activeTiles.forEach(tile => {
+    //         if (tile.unlocked) {
+    //             this.clustering.addTileAndConnectNeighbors(tile);
+    //         } else {
+    //             toRestore.push(tile);
+    //         }
+    //         tile.active = false;
+    //     });
+    //     this.activeTiles = [];
+    //     if (restoreActive) {
+    //         this.backupClustering = this.clustering.copy();
+    //         toRestore.forEach(tile => {
+    //             tile.active = true;
+    //             this.activeTiles.push(tile);
+    //             this.clustering.addTileAndConnectNeighbors(tile);
+    //         });
+    //     }
+    // }
 }

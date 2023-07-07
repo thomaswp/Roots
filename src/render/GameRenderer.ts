@@ -4,6 +4,7 @@ import { GridRenderer } from './GridRender';
 import { animalIcons } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
+import { Tile } from '../roots/Tile';
 
 export class GameRenderer {
     
@@ -17,6 +18,8 @@ export class GameRenderer {
     stoneRenderers: PIXI.Graphics[];
     container: PIXI.Container;
 
+    activatedTiles = new Set<Tile>();
+
 
     constructor(app: PIXI.Application, game: Roots) {
         this.app = app;
@@ -27,9 +30,16 @@ export class GameRenderer {
         this.initGroups();
         
         this.game.onNeedRefresh = () => {
-            this.updateStones();
-            this.gridRenderer.refresh();
+            this.refresh();
         }
+    }
+
+    get activeTileCount() : number {
+        return this.activatedTiles.size;
+    }
+
+    get nFreeStones() {
+        return this.game.nStones - this.activeTileCount;
     }
 
     initGroups() {
@@ -53,10 +63,57 @@ export class GameRenderer {
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
         .map(i => paths[i % paths.length]);
     }
+    
+
+    isTileActive(tile: Tile) : boolean {
+        return this.activatedTiles.has(tile);
+    }
+
+    activateTile(tile: Tile, silently: boolean = false) {
+        if (this.nFreeStones <= 0) {
+            return false;
+        }
+        this.activatedTiles.add(tile);
+        this.updateStones();
+        if (!silently) this.sendActiveTiles();
+        return true;
+    }
+
+    deactivateTile(tile: Tile) {
+        this.activatedTiles.delete(tile);
+        this.updateStones();
+    }
+
+    activateGroup(tile: Tile) {
+        let unclickedTiles = this.game.groups[tile.groupIndex].filter(t => !this.isTileActive(t));
+            // console.log('Considering ', unclickedTiles.length, unclickedTiles)
+        if (this.nFreeStones >= unclickedTiles.length) {
+            // console.log("go!!");
+            unclickedTiles.forEach(t => this.activateTile(t, true));
+            this.sendActiveTiles();
+        }
+        this.gridRenderer.refresh();
+    }
+
+    clearActiveTiles() {
+        this.activatedTiles.clear();
+        this.refresh();
+    }
+
+    private sendActiveTiles() {
+        if (this.game.tryActivating(this.activatedTiles)) {
+            this.clearActiveTiles();
+        }
+    }
+
+    refresh() {
+        this.updateStones();
+        this.gridRenderer.refresh();
+    }
 
     updateStones() {
         this.stoneRenderers.forEach((sprite, i) => {
-            sprite.visible = i < this.game.nFreeStones;
+            sprite.visible = i < this.nFreeStones;
         });
     }
 

@@ -31,7 +31,7 @@ export class GridRenderer {
 
     refresh() {
         this.children.forEach(hexRenderer => {
-            hexRenderer.redraw();
+            hexRenderer.refresh();
         });
     }
 
@@ -44,7 +44,7 @@ export class GridRenderer {
                 hexRenderer.tile.groupIndex === index
         })
         .forEach(hexRenderer => {
-            hexRenderer.redraw();
+            hexRenderer.refresh();
         });
     }
 
