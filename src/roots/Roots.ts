@@ -62,6 +62,7 @@ export class Roots {
         this.grid.forEach(tile => {
             tile.groupCount = this.groups[tile.groupIndex].length;
         });
+        console.log('created starting clustering', this.clustering);
     }
 
     save() {
@@ -115,6 +116,7 @@ export class Roots {
             }
             this.clustering.addTileAndConnectNeighbors(tile);
             this.checkConnections();
+            console.log(this.clustering);
         }
         // console.log(this.clustering.clusters);
     }
@@ -131,11 +133,13 @@ export class Roots {
         activeGroupIndices = activeGroupIndices.filter((value, index, self) => self.indexOf(value) === index);
         if (activeGroupIndices.length === 0) return;
 
+        console.log('checking connections', activeGroupIndices);
         let clear = false, refresh = false;
         for (let i = 0; i < activeGroupIndices.length; i++) {
             let groupIndex = activeGroupIndices[i];
             let group = this.groups[groupIndex];
             let clusterIndex = this.clustering.getClusterIndex(group[0].id);
+            console.log(group, group.map(tile => this.clustering.getClusterIndex(tile.id)));
             if (group.every(tile => {
                 return this.activeTiles.includes(tile) &&
                     clusterIndex === this.clustering.getClusterIndex(tile.id);
@@ -152,8 +156,8 @@ export class Roots {
             }
         }
 
-        this.clearActive(!clear);
         if (refresh) {
+            this.clearActive(!clear);
             this.save();
             this.onNeedRefresh();
         }

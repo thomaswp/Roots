@@ -38,9 +38,12 @@ export class Clustering {
     }
     
     join(clusterIDs: number[]) {
+        // console.log('joining clusters', clusterIDs);
         if (clusterIDs.length <= 1) return;
         let newCluster = [];
-        clusterIDs.sort().reverse().forEach(id => {
+        clusterIDs.sort((a, b) => a - b);
+        clusterIDs.reverse();
+        clusterIDs.forEach(id => {
             newCluster = newCluster.concat(this.clusters[id]);
             this.clusters.splice(id, 1);
         });
