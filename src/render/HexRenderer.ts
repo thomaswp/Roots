@@ -47,11 +47,17 @@ export class HexRenderer extends Container {
             this.hovered = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
         }
-        graphics.onclick = () => {
+        graphics.onrightclick = (e) => {
+            console.log('right clicked', tile.id);
+            this.gridRenderer.renderer.game.clearSelection();
+        }
+
+        graphics.onclick = (e) => {            
             tile.clicked();
             // this.hovered = false;
             // this.gridRenderer.updateHover(tile.groupIndex, false);
             this.redraw();
+            this.gridRenderer.renderer.updateStones();
             console.log('clicked', tile.id);
         }
     }
@@ -75,7 +81,7 @@ export class HexRenderer extends Container {
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
         } else if (tile.active) {
-            lineColor = 0xbbbbbb;
+            lineColor = 0xff00ff;
             zIndex = 2;
         } else if (this.gridRenderer.hoverGroupIndex === tile.groupIndex) {
             lineColor = 0xeeaaee;

@@ -14,12 +14,22 @@ export class GameRenderer {
     groupAnimalPaths: string[];
     groupColors: PIXI.Color[];
 
+    stoneRenderers: PIXI.Graphics[];
+    container: PIXI.Container;
+
 
     constructor(app: PIXI.Application, game: Roots) {
         this.app = app;
         this.game = game;
+        this.container = new PIXI.Container();
+        app.stage.addChild(this.container);
 
         this.initGroups();
+        
+        this.game.onNeedRefresh = () => {
+            this.updateStones();
+            this.gridRenderer.refresh();
+        }
     }
 
     initGroups() {
@@ -44,6 +54,12 @@ export class GameRenderer {
         .map(i => paths[i % paths.length]);
     }
 
+    updateStones() {
+        this.stoneRenderers.forEach((sprite, i) => {
+            sprite.visible = i < this.game.nFreeStones;
+        });
+    }
+
     colorForGroupIndex(index: number) : PIXI.Color {
         return this.groupColors[index];
     }
@@ -58,10 +74,22 @@ export class GameRenderer {
         });
         this.gridRenderer = new GridRenderer(this, this.game.grid);
         this.gridRenderer.init();
-        this.app.stage.addChild(this.gridRenderer.container);
+        this.container.addChild(this.gridRenderer.container);
 
         // this.gridRenderer.graphics.x = this.app.screen.width / 2;
         // this.gridRenderer.graphics.y = this.app.screen.height / 2;
+
+        this.stoneRenderers = Array.from(new Array(LevelGenerator.maxStones).keys()).map(i => {
+            let sprite = new PIXI.Graphics();
+            sprite.beginFill(0xffffff);
+            sprite.drawCircle(0, 0, 10);
+            sprite.endFill();
+            sprite.x = i * 25 + 10;
+            sprite.y = this.app.screen.height - 20;
+            this.container.addChild(sprite);
+            return sprite;
+        });
+        this.updateStones();
     }
 
     update(delta: number) {

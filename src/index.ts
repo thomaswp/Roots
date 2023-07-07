@@ -42,4 +42,9 @@ window.onload = function() {
     renderer.start();
 
     window.history.replaceState(null, null, `?seed=${seed}`);
+
+    document.oncontextmenu = document.body.oncontextmenu = function(e) {
+        e.preventDefault();
+        // return false;
+    }
 };

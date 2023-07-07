@@ -32,6 +32,10 @@ export class Roots {
     onNeedRefresh: () => void;
     onNeedSave: (data: GameData) => void;
 
+    get nFreeStones() {
+        return this.nStones - this.activeTiles.length;
+    }
+
     constructor(seed: string) {
         this.seed = seed;
     }
@@ -103,7 +107,7 @@ export class Roots {
             });
         } else {
             if (this.activeTiles.length >= this.nStones) return;
-            console.log(this.activeTiles.length, this.nStones);
+            // console.log(this.activeTiles.length, this.nStones);
             tile.active = true;
             this.activeTiles.push(tile);
             if (this.backupClustering == null) {
@@ -113,6 +117,11 @@ export class Roots {
             this.checkConnections();
         }
         // console.log(this.clustering.clusters);
+    }
+
+    clearSelection() {
+        this.clearActive(false);
+        this.onNeedRefresh();
     }
 
     checkConnections() {

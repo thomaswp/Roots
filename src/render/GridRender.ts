@@ -27,11 +27,12 @@ export class GridRenderer {
             this.children.push(hexRenderer);
             this.container.addChild(hexRenderer);
         });
-        this.renderer.game.onNeedRefresh = () => {
-            this.children.forEach(hexRenderer => {
-                hexRenderer.redraw();
-            });
-        };
+    }
+
+    refresh() {
+        this.children.forEach(hexRenderer => {
+            hexRenderer.redraw();
+        });
     }
 
     updateHover(index: number, hover: boolean) {
