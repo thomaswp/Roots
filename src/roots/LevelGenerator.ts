@@ -370,7 +370,8 @@ export class LevelGenerator {
             //     ms.footprint.forEach(tile => disallowedTiles.add(tile));
             // });
 
-            let createStoneMove = stones < LevelGenerator.maxStones && this.random() * moveset.moves.length > (stones - 1) * 5;
+            let createStoneMove = (stones < LevelGenerator.maxStones) && 
+                (this.random() * moveset.tiles.size > (stones - 1) * 5);
 
             let next = selectNextBaseTile(moveset, new Set(), createStoneMove);
             if (next == null) continue;
