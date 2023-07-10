@@ -43,6 +43,7 @@
     "poly-decomp": "^0.3.0",
     "priorityqueuejs": "^2.0.0",
     "random": "^3.0.6",
+    "random-words": "^2.0.0",
     "seedrandom": "^3.0.5",
     "serve-index": "^1.8.0"
   }
