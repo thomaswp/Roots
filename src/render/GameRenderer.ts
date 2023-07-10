@@ -16,6 +16,7 @@ export class GameRenderer {
     groupColors: PIXI.Color[];
 
     stoneRenderers: PIXI.Graphics[];
+    stonePieceRenderers: PIXI.Graphics[];
     container: PIXI.Container;
 
     activatedTiles = new Set<Tile>();
@@ -115,6 +116,9 @@ export class GameRenderer {
         this.stoneRenderers.forEach((sprite, i) => {
             sprite.visible = i < this.nFreeStones;
         });
+        this.stonePieceRenderers.forEach((sprite, i) => {
+            sprite.visible = i < this.game.nStonePieces
+        });
     }
 
     colorForGroupIndex(index: number) : PIXI.Color {
@@ -136,16 +140,40 @@ export class GameRenderer {
         // this.gridRenderer.graphics.x = this.app.screen.width / 2;
         // this.gridRenderer.graphics.y = this.app.screen.height / 2;
 
+        let radius = 10;
+        let xPadding = 5 + radius;
+        let height = this.app.screen.height - 10 * 2;
         this.stoneRenderers = Array.from(new Array(LevelGenerator.maxStones).keys()).map(i => {
             let sprite = new PIXI.Graphics();
             sprite.beginFill(0xffffff);
-            sprite.drawCircle(0, 0, 10);
+            sprite.drawCircle(0, 0, radius);
             sprite.endFill();
-            sprite.x = i * 25 + 10;
-            sprite.y = this.app.screen.height - 20;
+            sprite.x = xPadding + (i + 1) * 25;
+            sprite.y = height;
             this.container.addChild(sprite);
             return sprite;
         });
+        this.stonePieceRenderers = Array.from(new Array(this.game.nStonePiecesPerStone).keys()).map(i => {
+            let sprite = new PIXI.Graphics();
+            sprite.beginFill(0xffffff);
+            let nPieces = this.game.nStonePiecesPerStone;
+            sprite.arc(0, 0, radius, i * Math.PI * 2 / nPieces, (i + 1) * Math.PI * 2 / nPieces, false);
+            sprite.lineTo(0, 0);
+            // sprite.drawCircle(0, 0, radius);
+            sprite.endFill();
+
+            sprite.x = xPadding;
+            sprite.y = height;
+            this.container.addChild(sprite);
+            return sprite;
+        });
+        let sprite = new PIXI.Graphics();
+        sprite.lineStyle({width: 2, color: 0xffffff});
+        sprite.moveTo(0, 0);
+        sprite.drawCircle(0, 0, radius);
+        sprite.x = xPadding;
+        sprite.y = height;
+        this.container.addChild(sprite);
         this.updateStones();
     }
 

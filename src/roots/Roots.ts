@@ -9,6 +9,8 @@ export type GameData = {
     height: number;
     tiles: TileData[];
     nStones: number;
+    nStonePieces: number;
+    nStonePiecesPerStone: number;
 }
 
 export class Roots {
@@ -19,6 +21,8 @@ export class Roots {
     seed: string;
     grid: Grid<Tile>;
     nStones = 2;
+    nStonePieces = 0;
+    nStonePiecesPerStone;
     
     // derived fields
     groups: Tile[][] = [];
@@ -40,6 +44,7 @@ export class Roots {
     createNewLevel() {
         let generator = new LevelGenerator(this.seed, this.width, this.height);
         this.grid = generator.generate();
+        this.nStonePiecesPerStone = generator.stonePiecesPerStone;
         this.initializeGrid();
         this.save();
     }
@@ -65,7 +70,7 @@ export class Roots {
     save() {
         let data = this.serialize();
         // console.log('saving...', data);
-        this.onNeedSave(this.serialize());
+        this.onNeedSave(data);
     }
 
     serialize() : GameData {
@@ -75,6 +80,8 @@ export class Roots {
             height: this.height,
             tiles: this.grid.toArray().map(tile => tile.serialize()),
             nStones: this.nStones,
+            nStonePieces: this.nStonePieces,
+            nStonePiecesPerStone: this.nStonePiecesPerStone,
         };
     }
 
@@ -82,6 +89,9 @@ export class Roots {
         console.log('loading...', data);
         this.seed = data.seed;
         this.nStones = data.nStones;
+        this.nStonePieces = data.nStonePieces || 0;
+         // If it's an old map, should just be one piece per stone
+        this.nStonePiecesPerStone = data.nStonePiecesPerStone || 1;
         this.width = data.width;
         this.height = data.height;
         this.grid = new Grid(Tile, rectangle({ width: data.width, height: data.height }));
@@ -177,7 +187,11 @@ export class Roots {
                 this.clustering.addTileAndConnectNeighbors(tile);
             });
             if (group[0].isStoneTile) {
-                this.nStones++;
+                this.nStonePieces++;
+                if (this.nStonePieces >= this.nStonePiecesPerStone) {
+                    this.nStonePieces -= this.nStonePiecesPerStone;
+                    this.nStones++;
+                }
             }
             this.save();
             this.onNeedRefresh();
