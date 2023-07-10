@@ -38,16 +38,21 @@ class Moveset {
     readonly footprint: Set<Tile> = new Set();
     readonly moves: Tile[][] = [];
     stones: number;
+    stonePieces: number = 0;
 
     constructor(stones: number) {
         this.stones = stones;
+    }
+
+    get footprintRadius() {
+        return this.stones - 1;
     }
 
     addMove(move: Tile[]) {
         this.moves.push(move);
         move.forEach(tile => {
             this.tiles.add(tile);
-            this.addFootprint(tile, this.footprint, this.stones);
+            this.addFootprint(tile, this.footprint, this.footprintRadius);
         });
     }
 
@@ -66,10 +71,11 @@ class Moveset {
 
     setStones(stones: number) {
         this.stones = stones;
-        this.tiles.forEach(tile => this.addFootprint(tile, this.footprint, this.stones));
+        this.tiles.forEach(tile => this.addFootprint(tile, this.footprint, this.footprintRadius));
     }
 
     add(other: Moveset) {
+        this.stonePieces += other.stonePieces;
         other.tiles.forEach(tile => this.tiles.add(tile));
         other.footprint.forEach(tile => this.footprint.add(tile));
         
@@ -96,6 +102,7 @@ export class LevelGenerator {
     grid: Grid<Tile>;
     tileMap: Map<number, Tile> = new Map();
     seed: string;
+    stonePiecesPerStone: number = 3;
     random: () => number;
 
     static readonly maxStones = 6;
@@ -143,8 +150,40 @@ export class LevelGenerator {
         let nextGroupIndex = 0;
 
         let stones = 2;
+        let stonePieces = 0;
 
-        let createMove = (tile: Tile, dependentMove: Tile[] = null, disallowedTiles: Set<Tile> = new Set(), maximizeCostGain = false) => {
+        let findTilesMadeCloserWithGroup = (startTile: Tile, group: Tile[]) => {
+            
+            let possibleMoves = this.findUngroupedTilesWithinDistance(gridAdapter, startTile, stones - 1);
+            gridAdapter.ignoreGroupingTiles = group;
+            let possibleMovesWithoutGroup = this.findUngroupedTilesWithinDistance(gridAdapter, startTile, stones - 1);
+            gridAdapter.ignoreGroupingTiles = [];
+
+            let costMapWithout = new Map<number, number>();
+            possibleMovesWithoutGroup.forEach(pair => costMapWithout.set(pair.id, pair.cost));
+
+            let newlyPossiblePairs = possibleMoves
+            .filter(pair => !costMapWithout.has(pair.id) || costMapWithout.get(pair.id) > pair.cost);
+
+            // if (maximizeCostGain) {
+            //     let costGain = (cost: Cost) => {
+            //         let costBefore = costMap.get(cost.id);
+            //         if (costBefore == null) costBefore = Number.POSITIVE_INFINITY;
+            //         return costBefore - cost.cost;
+            //     }
+
+            //     // Sort from largest to smallest cost gain
+            //     newlyPossiblePairs.sort((a, b) => {
+            //         return costGain(b) - costGain(a);
+            //     });
+            //     toAdd = newlyPossiblePairs[0];
+            // }
+
+            return newlyPossiblePairs;
+
+        }
+
+        let createMove = (tile: Tile, dependentMove: Tile[] = null, disallowedTiles: Set<Tile> = new Set()) => {
 
             // console.log('attempting to group with tile', tile.id, tile);
 
@@ -165,15 +204,7 @@ export class LevelGenerator {
             }
 
             if (dependentMove != null) {
-                gridAdapter.ignoreGroupingTiles = dependentMove;
-                let possiblePairsBeforeDependentMove = this.findUngroupedTilesWithinDistance(gridAdapter, tile, maxPathCost);
-                gridAdapter.ignoreGroupingTiles = [];
-
-                let costMap = new Map<number, number>();
-                possiblePairsBeforeDependentMove.forEach(pair => costMap.set(pair.id, pair.cost));
-
-                let newlyPossiblePairs = possiblePairs
-                .filter(pair => !costMap.has(pair.id) || costMap.get(pair.id) > pair.cost);
+                let newlyPossiblePairs = findTilesMadeCloserWithGroup(tile, dependentMove);
 
                 // Wouldn't normally need to break, but for testing
                 if (newlyPossiblePairs.length == 0) {
@@ -183,19 +214,6 @@ export class LevelGenerator {
                 }
                 
                 let toAdd = newlyPossiblePairs[Math.floor(this.random() * newlyPossiblePairs.length)];
-                if (maximizeCostGain) {
-                    let costGain = (cost: Cost) => {
-                        let costBefore = costMap.get(cost.id);
-                        if (costBefore == null) costBefore = Number.POSITIVE_INFINITY;
-                        return costBefore - cost.cost;
-                    }
-
-                    // Sort from largest to smallest cost gain
-                    newlyPossiblePairs.sort((a, b) => {
-                        return costGain(b) - costGain(a);
-                    });
-                    toAdd = newlyPossiblePairs[0];
-                }
                 addPair(toAdd);
             }
 
@@ -211,7 +229,7 @@ export class LevelGenerator {
             }
             // console.log('costgroup', group)
 
-            let totalCost = group.map(g => g.cost).reduce((a, b) => a + b, 0);
+            // let totalCost = group.map(g => g.cost).reduce((a, b) => a + b, 0);
             
             let tileGroup = group
             .map(g => this.tileMap.get(g.id));
@@ -232,9 +250,11 @@ export class LevelGenerator {
 
 
         let addMoveset = () => {
+            let allFootprints = new Set(movesets.flatMap(moveset => [...moveset.footprint.keys()]));
+
             let available = new Set<Tile>();
             ungroupedTiles.forEach(tile => available.add(tile));
-            movesets.forEach(moveset => moveset.footprint.forEach(tile => available.delete(tile)));
+            allFootprints.forEach(tile => available.delete(tile));
 
             if (available.size == 0) return null;
 
@@ -246,7 +266,7 @@ export class LevelGenerator {
             if (preferredTiles.length == 0) preferredTiles = Array.from(available);
             let baseTile = preferredTiles[Math.floor(this.random() * preferredTiles.length)];
 
-            let move = createMove(baseTile);
+            let move = createMove(baseTile, null, allFootprints);
             if (move == null) return null;
 
             let moveset = new Moveset(stones);
@@ -255,11 +275,11 @@ export class LevelGenerator {
         };
 
         let createNewMovesets = () => {
-            let reduction = Math.ceil((stones - 2) / 2);
-            let maxMovesets = 4 - reduction, minMovesets = Math.max(0, 2 - reduction);
-            let nMovesets= Math.floor(this.random() * (maxMovesets - minMovesets + 1)) + minMovesets;
             let createdMovesets = 0;
-            for (let i = 0; i < nMovesets; i++) {
+            // TODO: Might be fun to add some extra, non-required movesets at some point
+            let extraMovesets = 0; // Math.floor(this.random() * 3);
+            let targetMovesets = this.stonePiecesPerStone + extraMovesets;
+            for (let i = 0; i < 20 && movesets.length < targetMovesets; i++) {
                 let moveset = addMoveset();
                 if (moveset != null) {
                     movesets.push(moveset);
@@ -296,20 +316,27 @@ export class LevelGenerator {
             return {tile, dependentMove};
         };
 
+        let tryJoinMovesets = (joiner: Moveset, receiver: Moveset, encroachingTile: Tile) => {
+            // Find tiles that are accessible from the last move's encroaching tile,
+            // but only when the receiver is present. These are valid start tiles.
+            let requiredTiles = [...receiver.tiles.keys()];
+            // TODO: Is it sufficient to just be closer or must it be only reachable with the receiver moveset present?
+            let startTileOptions = findTilesMadeCloserWithGroup(encroachingTile, requiredTiles);
+            if (startTileOptions.length == 0) return null;
+            let startTile = startTileOptions[Math.floor(this.random() * startTileOptions.length)];
+
+            let otherMovesets = movesets.filter(moveset => moveset != joiner && moveset != receiver);
+            let otherFootprints = new Set(otherMovesets.flatMap(moveset => [...moveset.footprint.keys()]));
+            // If the move requires both the receiver and the encroaching tile, it should join the movesets
+            let move = createMove(this.tileMap.get(startTile.id), [encroachingTile], otherFootprints, );
+
+            return move;
+        }
+
         // TODO: Still some black tiles - could bail out early with a fix
         let maxAttempts = 50;
         let attemptsSinceLastProgress = 0;
-        let allowUnions = false;
-        // let stoneMoveset = null as Moveset;
-
-        let joinableFootprints: Set<Tile>[] = [];
-
-        // TODO: Should lower this bar: we want more joins
-        let updateAllowUnions = () => {
-            if (groupedTiles.length * this.random() > Math.pow(stones, 2.5) * 2.5) {
-                allowUnions = true;
-            }
-        }
+        let allowNonMinMovesets = false;
 
         // seed with initial movesets
         createNewMovesets();
@@ -319,113 +346,83 @@ export class LevelGenerator {
             attemptsSinceLastProgress++;
             if (attemptsSinceLastProgress > maxAttempts) {
                 // If we've tried enough with unions allowed, we're really stuck, so bail out
-                if (allowUnions) {
+                if (allowNonMinMovesets) {
                     break;
                 }
                 // If not, allow unions and keep trying
-                allowUnions = true;
+                allowNonMinMovesets = true;
                 attemptsSinceLastProgress = 0;
             }
             
-            let moveset = movesets[Math.floor(this.random() * movesets.length)];
+            // Prioritize movesets that are at the minimum number of stone pieces
+            let minStonePieces = movesets.reduce((min, moveset) => Math.min(min, moveset.stonePieces), Number.POSITIVE_INFINITY);
+            let targetMovesets = movesets;
+            if (!allowNonMinMovesets) {
+                targetMovesets = targetMovesets.filter(moveset => moveset.stonePieces == minStonePieces);
+            }
+            // Select a random one
+            let moveset = targetMovesets[Math.floor(this.random() * targetMovesets.length)];
 
-            // If set have a moveset marked to add a stone, use that moveset
-            // TODO: Could add some randomness
-            // let addStone = stoneMoveset != null;
-            // if (addStone) {
-            //     moveset = stoneMoveset;
-            //     stoneMoveset = null;
-            // }
+            // Probably don't need this anymore - joining movesets is always allowed currently
+            // let disallowedTiles = new Set<Tile>();
+            // movesets.forEach(ms => {
+            //     if (ms == moveset) return;
+            //     ms.footprint.forEach(tile => disallowedTiles.add(tile));
+            // });
 
-            let disallowedTiles = new Set<Tile>();
-            movesets.forEach(ms => {
-                if (ms == moveset) return;
-                ms.footprint.forEach(tile => disallowedTiles.add(tile));
-            });
+            let createStoneMove = stones < LevelGenerator.maxStones && this.random() * moveset.moves.length > (stones - 1) * 5;
 
-            let next = selectNextBaseTile(moveset, disallowedTiles, false);
+            let next = selectNextBaseTile(moveset, new Set(), createStoneMove);
             if (next == null) continue;
             let {tile, dependentMove} = next;
-            if (disallowedTiles.has(tile)) console.error('disallowed tile', tile);
-            let move = createMove(tile, dependentMove, allowUnions ? new Set() : disallowedTiles, false);
+            let move = createMove(tile, dependentMove);
             if (move == null) continue;
             moveset.addMove(move);
+
+            // We've made progress, so reset the attempts counter
             attemptsSinceLastProgress = 0;
-            updateAllowUnions();
+            allowNonMinMovesets = false;
 
-            // TODO: Either need to guarantee somehow the movesets join earlier
-            // Or allow stone increase outside of moveset joing (former preferred)
-            if (stones < LevelGenerator.maxStones) {
-                // BUG: This doesn't seem to trigger on some maps!!
-                // For each tile in this move, check if it has a unique footprint
-                // (it starts in one and outside of all others), and collect these
-                let uniqueFootprints = move.map(m => {
-                    let footprints = joinableFootprints.filter(jf => jf.has(m));
-                    // If this move is part of multiple footprints, skip it since it's a border tile
-                    if (footprints.length == 1) return footprints[0];
-                    return null;
-                }).filter(jf => jf != null);
-                // Filter to remove duplicates: we need multiple distinct "unique footprints"
-                uniqueFootprints = uniqueFootprints.filter((v, i, a) => a.indexOf(v) === i);
-                console.log(uniqueFootprints);
-
-                // If this move joins 2 unique footprints, it's a stone move
-                if (uniqueFootprints.length > 1) {
-                    console.log('stone move', move, 'from joining', uniqueFootprints);
-                    // Remove the footprints that are being joined
-                    joinableFootprints = joinableFootprints.filter(jf => !uniqueFootprints.includes(jf));
-                    move.forEach(tile => {
-                        tile.isStoneTile  = true;
-                    });
-                    stones++;
-                    movesets.forEach(ms => ms.setStones(stones));
-                    createNewMovesets();
-                    // stoneMoveset = null;
-
-                    // TODO: There still seems to be some way that stones are placed
-                    // within one seeming group. I'm wondering if we need the big and
-                    // small footprints (exclude from big, include in small)
-                    // Or if maybe earlier footprints need to be removed when stones
-                    // increase...? Need to think about it.
-                }
+            // If this move created stone tiles, increase the moveset's
+            // stone piece count, as well as the total number of stone pieces
+            if (createStoneMove) {
+                move.forEach(tile => tile.isStoneTile = true);
+                moveset.stonePieces++;
+                stonePieces++;
             }
 
-            // No need for this - unions can form when stones increase,
-            // so we always sort of need to check
-            // if (!allowUnions) continue;
+            // If we've created enough stone pieces to add a stone, do so
+            if (stonePieces == this.stonePiecesPerStone) {
+                stonePieces = 0;
+                stones++;
+                movesets.forEach(ms => ms.setStones(stones));
+                createNewMovesets();
+            }
 
-            let joinedMovesetFootprints: Set<Tile>[] = [];
-            let nFootprintStones = 1; // Math.ceil(stones / 2);
-            // If we're allowed to join movesets, check if we have
+            
+            // If this move allows to movesets to interfere with each other,
+            // create a move that joins them
             for (let i = 0; i < movesets.length; i++) {
                 let ms = movesets[i];
                 if (ms == moveset) continue;
-                if (move.some(t => ms.footprint.has(t))) {
 
-                    // Record the footprints of each moveset (before joining!)
-                    // The joinable footprint is 1 smaller than the regular footprint, since
-                    // while it's possible to interfere with another moveset at "stones" radius
-                    // joining would only require stones - 1 radius
-                    if (joinedMovesetFootprints.length == 0) {
-                        joinedMovesetFootprints.push(moveset.createFootprint(nFootprintStones));
-                    }
-                    joinedMovesetFootprints.push(ms.createFootprint(nFootprintStones));
+                let encroachingTiles = move.filter(t => ms.footprint.has(t))
+                if (encroachingTiles.length > 0) {
 
                     console.log('joining movesets', moveset, ms);
                     moveset.add(ms);
                     movesets.splice(i, 1);
                     i--;
+
+                    for (let encroachingTile of encroachingTiles) {
+                        let joiningMove = tryJoinMovesets(moveset, ms, encroachingTile);
+                        if (joiningMove == null) continue;
+                        moveset.addMove(joiningMove);
+                        // Take the first move that works, ignore the rest
+                        break;
+                    }
                 }
             };
-            // If we didn't join any movesets, continue
-            if (joinedMovesetFootprints.length <= 1) continue;
-            console.log('joined moveset footprints', joinedMovesetFootprints);
-
-            // No more new unions until the criteria are met
-            allowUnions = false;
-            if (stones < LevelGenerator.maxStones) {
-                joinedMovesetFootprints.forEach(ms => joinableFootprints.push(ms));
-            }
         }
         return this.grid;
     }

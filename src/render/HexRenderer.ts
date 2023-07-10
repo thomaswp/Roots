@@ -62,6 +62,7 @@ export class HexRenderer extends Container {
         let lastCliked = 0;
         graphics.onclick = (e) => {
             console.log('clicked', tile.id);
+            if (this.tile.unlocked) return;
             let doubleClick = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
@@ -85,8 +86,13 @@ export class HexRenderer extends Container {
 
         let active = tile.unlocked || this.active;
 
-        let color = this.gridRenderer.renderer.colorForGroupIndex(tile.groupCount - 2);
-        if (tile.isStoneTile) color = new PIXI.Color(0x888888);
+        let groupCountColor = this.gridRenderer.renderer.colorForGroupIndex(tile.groupCount - 2);
+        let color = groupCountColor;
+
+        if (tile.isStoneTile) {
+            color = new PIXI.Color(0xaaaaaa);
+        }
+
         let lineColor;
         let lineColorAlpha = 1;
         let zIndex = 0;
@@ -103,16 +109,32 @@ export class HexRenderer extends Container {
         } else {
             lineColor = 0x000000;
         }
+        // Tie breaking for consistency
+        zIndex += (tile.q + tile.r * 0.1) * 0.001;
+
+        if (tile.isStoneTile) {
+            lineColor = new PIXI.Color(groupCountColor).multiply(new PIXI.Color(0xbbbbbb)); //new PIXI.Color(0xffd700);
+            zIndex += 0.5;
+        }
         this.zIndex = zIndex;
 
         hex.clear();
         hex.beginFill(color);
         hex.lineStyle(3, lineColor, lineColorAlpha);
         let translatedCorners = tile.corners.map(c => {
+            // TODO: Draw inset so borders don't overlap
             return {x: c.x + tile.center.x, y: c.y + tile.center.y};
         });
         hex.drawPolygon(translatedCorners);
         hex.endFill();
+
+        // if (tile.isStoneTile) {
+        //     hex.lineStyle(3, 0xFFD700, 1);
+        //     let translatedCorners = tile.corners.map(c => {
+        //         return {x: (c.x + tile.center.x) * 0.9, y: (c.y + tile.center.y) * 0.9};
+        //     });
+        //     hex.drawPolygon(translatedCorners);
+        // }
 
 
         if (this.gridRenderer.hoverGroupIndex === tile.groupIndex) {

@@ -27,7 +27,7 @@ window.onload = function() {
         window.localStorage.setItem(seed, JSON.stringify(data));
     }
     let savedJSON = window.localStorage.getItem(seed);
-    if (savedJSON != null) {
+    if (savedJSON != null && !params.has('reset')) {
         try {
             let data = JSON.parse(savedJSON);
             game.deserialize(data);
