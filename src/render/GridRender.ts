@@ -1,5 +1,5 @@
 import { Grid } from "honeycomb-grid";
-import { Tile } from "../roots/Tile";
+import { Tile, tileSize } from "../roots/Tile";
 import * as PIXI from "pixi.js";
 import { Container } from "pixi.js";
 import { GameRenderer } from "./GameRenderer";
@@ -19,6 +19,12 @@ export class GridRenderer {
         this.renderer = renderer;
         this.container = new PIXI.Container();
         this.container.sortableChildren = true;
+
+        let width = (renderer.game.width + 1) * tileSize * Math.sqrt(3);
+        // let height = renderer.game.height * tileSize * 1.5;
+        this.container.x = this.renderer.app.screen.width / 2 - width / 2;
+        this.container.y = 40;
+        console.log(width);
     }
 
     init() {
@@ -49,6 +55,9 @@ export class GridRenderer {
     }
 
     update(delta: number) {
+        this.children.forEach(hexRenderer => {
+            hexRenderer.update(delta);
+        });
     }
 
 }

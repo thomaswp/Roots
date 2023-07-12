@@ -49,4 +49,8 @@ window.onload = function() {
         e.preventDefault();
         // return false;
     }
+
+    app.ticker.add((delta) => {
+        renderer.update(delta / 60);
+    });
 };

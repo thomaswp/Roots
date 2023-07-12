@@ -3,13 +3,25 @@ import { Container } from "pixi.js";
 import { Tile } from "../roots/Tile";
 import { GridRenderer } from "./GridRender";
 import { GameRenderer } from "./GameRenderer";
+import { SpriteH } from "pixi-heaven";
+import { lerp, lerpHexColor } from "../util/MathUtil";
 
 export class HexRenderer extends Container {
     tile: Tile;
-    icon: PIXI.Sprite;
+    icon: SpriteH;
     hex: PIXI.Graphics;
+    border: PIXI.Graphics;
     hovered: boolean = false;
     gridRenderer: GridRenderer;
+
+    private flipValue: number = 0;
+    private unlocked = false;
+    private targetBorderColor = 0x000000;
+    private targetHexColor = 0xffffff;
+    private targetIconColor = new PIXI.Color(0x000000);
+    private targetScale = 1;
+    private hovering = false;
+    private hoveringTime = 0;
 
     get renderer() : GameRenderer {
         return this.gridRenderer.renderer;
@@ -24,26 +36,36 @@ export class HexRenderer extends Container {
         this.gridRenderer = gridRenderer;
         this.tile = tile;
 
-        let icon = this.icon = new PIXI.Sprite();
-        if (tile.groupIndex !== undefined) {
-            icon.texture = PIXI.Texture.from(this.renderer.iconPathForGroupIndex(tile.groupIndex));
-        }
-        icon.anchor.set(0.5);
-        let iconRatio = 0.6;
-        icon.width = tile.width * iconRatio;
-        icon.height = tile.height * iconRatio;
-        icon.x = tile.width / 2;
-        icon.y = tile.height / 2;
-        
-        let graphics = this.hex = new PIXI.Graphics();
-        
-        this.addChild(graphics);
-        this.addChild(icon);
+        this.createHexAndBorder();
+        this.createIcon();
+        this.addInteraction();
 
-        this.x = -tile.center.x;
-        this.y = -tile.center.y;
+        this.x = -tile.center.x + tile.width / 2;
+        this.y = -tile.center.y + tile.height / 2;
 
         this.refresh();
+    }
+
+    createIcon() {
+        let texture = null;
+        if (this.tile.groupIndex !== undefined) {
+            let path = this.renderer.iconPathForGroupIndex(this.tile.groupIndex);
+            texture = PIXI.Texture.from(path);
+        }
+        let icon = this.icon = new SpriteH(texture);
+        // icon.color.setDark(0.5, 0, 0);
+        icon.anchor.set(0.5);
+        let iconRatio = 0.6;
+        icon.width = this.tile.width * iconRatio;
+        icon.height = this.tile.height * iconRatio;
+        icon.x = 0;
+        icon.y = 0;
+        this.addChild(icon);
+    }
+
+    addInteraction() {
+        let graphics = this.hex;
+        let tile = this.tile;
 
         graphics.interactive = true;
 
@@ -77,70 +99,125 @@ export class HexRenderer extends Container {
         }
     }
 
-    
-
-    refresh() {
-        
+    createHexAndBorder() {
         let tile = this.tile;
-        let hex = this.hex;
+        let translatedCorners = tile.corners.map(c => {
+            // TODO: Draw inset so borders don't overlap
+            return {x: c.x + tile.center.x - tile.width / 2, y: c.y + tile.center.y - tile.height / 2};
+        });
+        // let inset = 1;
+        // translatedCorners = translatedCorners.map(c => {
+        //     return {x: c.x * inset, y: c.y * inset};
+        // });
 
-        let active = tile.unlocked || this.active;
-
-        let groupCountColor = this.gridRenderer.renderer.colorForGroupIndex(tile.groupCount - 2);
-        let color = groupCountColor;
-
-        if (tile.isStoneTile) {
+        let color = this.getGroupColor();
+        if (this.tile.isStoneTile) {
             color = new PIXI.Color(0xaaaaaa);
         }
 
+        let hex = this.hex = new PIXI.Graphics();
+        hex.clear();
+        hex.beginFill(color);
+        hex.drawPolygon(translatedCorners);
+        hex.endFill();
+        this.addChild(hex);
+
+        let border = this.border = new PIXI.Graphics();
+        border.clear();
+        border.lineStyle(3, 0xffffff);
+        border.drawPolygon(translatedCorners);
+        border.endFill();
+        this.addChild(border);
+    }
+
+    update(delta: number) {
+        if (this.flipValue > 0) {
+            this.scale.x = Math.abs(Math.cos(this.flipValue * Math.PI));
+            this.flipValue = Math.max(0, this.flipValue - delta * 0.07);
+        } else {
+            let targetScale = this.targetScale;
+            if (this.hovering && targetScale == 1) {
+                this.hoveringTime += delta;
+                // targetColor = lerpHexColor(targetColor, 0x777777, -Math.cos(this.hoveringTime * 0.06) * 0.5 + 0.5);
+                targetScale = lerp(targetScale, 1.08, -Math.cos(this.hoveringTime * 0.08) * 0.5 + 0.5, 0.005);
+            } else {
+                this.hoveringTime = 0;
+            }
+            this.scale.x = this.scale.y = lerp(this.scale.x, targetScale, delta * 0.1, 0.005);
+        }
+
+        let colorShiftSpeed = 0.25;
+        let targetColor = this.targetHexColor;
+        this.hex.tint = lerpHexColor(this.hex.tint, targetColor, delta * colorShiftSpeed);
+        // console.log(this.targetHexColor, this.hex.tint);
+        this.border.tint = lerpHexColor(this.border.tint, this.targetBorderColor, delta * colorShiftSpeed);
+
+        this.icon.color.setDark(
+            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005)
+        );
+    }
+
+    unlock() {
+        this.flipValue = 1;
+        this.unlocked = true;
+    }
+
+    getGroupColor() : PIXI.Color {
+        return this.gridRenderer.renderer.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
+    }
+    
+
+    refresh() {        
+        let tile = this.tile;
+        let hex = this.hex;
+
+        if (tile.unlocked && !this.unlocked) {
+            this.unlock();
+        }
+
+        let active = tile.unlocked || this.active;
+        let hovering = this.hovering = this.gridRenderer.hoverGroupIndex === tile.groupIndex;
+
+        let groupCountColor = this.getGroupColor();
+
         let lineColor;
-        let lineColorAlpha = 1;
         let zIndex = 0;
         if (tile.unlocked) {
+            // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb); 
             lineColor = 0xeeeeee;
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
         } else if (this.active) {
-            lineColor = 0xff00ff;
+            lineColor = 0xffffff;
             zIndex = 2;
-        } else if (this.gridRenderer.hoverGroupIndex === tile.groupIndex) {
-            lineColor = 0xeeaaee;
-            zIndex = 1;
+        } else if (hovering) {
+            lineColor = 0xffffff;
+            zIndex = 1.5;
         } else {
-            lineColor = 0x000000;
+            lineColor = new PIXI.Color('00000000');
         }
         // Tie breaking for consistency
         zIndex += (tile.q + tile.r * 0.1) * 0.001;
 
-        if (tile.isStoneTile) {
-            lineColor = new PIXI.Color(groupCountColor).multiply(new PIXI.Color(0xbbbbbb)); //new PIXI.Color(0xffd700);
+        if (tile.isStoneTile && !tile.unlocked) {
+            lineColor = new PIXI.Color(groupCountColor);
+            if (!active) lineColor.multiply(new PIXI.Color(0xbbbbbb)); //new PIXI.Color(0xffd700);
             zIndex += 0.5;
+            // this.icon.color.setDark(groupCountColor.red * 0.7, groupCountColor.green * 0.7, groupCountColor.blue * 0.7);
         }
         this.zIndex = zIndex;
 
-        hex.clear();
-        hex.beginFill(color);
-        hex.lineStyle(3, lineColor, lineColorAlpha);
-        let translatedCorners = tile.corners.map(c => {
-            // TODO: Draw inset so borders don't overlap
-            return {x: c.x + tile.center.x, y: c.y + tile.center.y};
-        });
-        hex.drawPolygon(translatedCorners);
-        hex.endFill();
-
-        // if (tile.isStoneTile) {
-        //     hex.lineStyle(3, 0xFFD700, 1);
-        //     let translatedCorners = tile.corners.map(c => {
-        //         return {x: (c.x + tile.center.x) * 0.9, y: (c.y + tile.center.y) * 0.9};
-        //     });
-        //     hex.drawPolygon(translatedCorners);
-        // }
+        this.targetBorderColor = lineColor;
+        this.targetIconColor.setValue(this.active ? 0xffffff : 0x000000);
+        this.targetScale = this.active ? 1.08 : 1;
 
 
-        if (this.gridRenderer.hoverGroupIndex === tile.groupIndex) {
-            hex.tint = active ? 0xeeeeee : 0xeeeeee;
+        if (hovering) {
+            this.targetHexColor = 0xeeeeee;
         } else {
-            hex.tint = active ? 0xffffff : 0x888888;
+            this.targetHexColor = active ? 0xffffff : 0x888888;
         }
     }
 }

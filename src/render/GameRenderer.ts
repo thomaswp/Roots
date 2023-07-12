@@ -29,10 +29,6 @@ export class GameRenderer {
         app.stage.addChild(this.container);
 
         this.initGroups();
-        
-        this.game.onNeedRefresh = () => {
-            this.refresh();
-        }
     }
 
     get activeTileCount() : number {
@@ -62,7 +58,7 @@ export class GameRenderer {
             [paths[i], paths[j]] = [paths[j], paths[i]];
         }
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
-        .map(i => paths[i % paths.length]);
+        .map(i => paths[i % paths.length])
     }
     
 
@@ -178,6 +174,6 @@ export class GameRenderer {
     }
 
     update(delta: number) {
-        
+        this.gridRenderer.update(delta);
     }
 }

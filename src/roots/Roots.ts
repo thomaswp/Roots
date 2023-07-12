@@ -33,7 +33,6 @@ export class Roots {
     // TODO: Consider just passing this from the renderer
     // activeTiles: Tile[] = [];
 
-    onNeedRefresh: () => void;
     onNeedSave: (data: GameData) => void;
 
 
@@ -103,52 +102,6 @@ export class Roots {
         console.log('finished loading', this);
     }
 
-
-    // // Either this or "Check Connections" still has a bug in it - need to find it
-    // tileClicked(tile: Tile, activateWholeGroup: boolean = false) {
-    //     // If an inactive tile is clicked, activate it
-    //     if (!tile.active) {
-    //         // console.log('activating', tile);
-    //         // console.log(this.activeTiles);
-    //         if (this.activeTiles.length >= this.nStones) return;
-    //         // console.log(this.activeTiles.length, this.nStones);
-    //         tile.active = true;
-    //         this.activeTiles.push(tile);
-    //         if (this.backupClustering == null) {
-    //             this.backupClustering = this.clustering.copy();
-    //         }
-    //         this.clustering.addTileAndConnectNeighbors(tile);
-    //         this.checkConnections();
-    //         // console.log(this.clustering);
-
-    //     // Otherwise, unless this is a double-click, deactivate it
-    //     } else if (!activateWholeGroup) {
-    //         tile.active = false;
-    //         this.activeTiles.splice(this.activeTiles.indexOf(tile), 1);
-    //         this.clustering = this.backupClustering.copy();
-    //         this.activeTiles.forEach(tile => {
-    //             // console.log(JSON.stringify(this.clustering), tile.id);
-    //             this.clustering.addTileAndConnectNeighbors(tile);
-    //         });
-    //     }
-        
-    //     // Either way, if this is a double-click, try to activate the whole group
-    //     if (activateWholeGroup) {
-    //         let unclickedTiles = this.groups[tile.groupIndex].filter(t => !t.active);
-    //         // console.log('Considering ', unclickedTiles.length, unclickedTiles)
-    //         if (this.nStones - this.activeTiles.length >= unclickedTiles.length) {
-    //             // console.log("go!!");
-    //             unclickedTiles.forEach(tile => this.tileClicked(tile));
-    //         }
-    //         this.onNeedRefresh();
-    //     }
-    // }
-
-    // clearSelection() {
-    //     this.clearActive(false);
-    //     this.onNeedRefresh();
-    // }
-
     tryActivating(activeTiles: Set<Tile>) : boolean {
         let testClustering = this.clustering.copy();
         activeTiles.forEach(tile => testClustering.addTileAndConnectNeighbors(tile, t => {
@@ -194,7 +147,6 @@ export class Roots {
                 }
             }
             this.save();
-            this.onNeedRefresh();
             // console.log('unlocked group ' + groupIndex);
             return true;
         }

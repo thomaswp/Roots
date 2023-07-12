@@ -7,7 +7,9 @@ export type TileData = {
     isStoneTile: boolean;
 }
 
-export class Tile extends defineHex({ dimensions: 30, origin: "topLeft" }) {
+export const tileSize = 30;
+
+export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" }) {
   
     // serializable fields
     id: number;
