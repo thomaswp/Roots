@@ -2,11 +2,12 @@ import * as PIXI from "pixi.js";
 import { GameData, Roots } from "./roots/Roots";
 import { GameRenderer as GameRenderer } from "./render/GameRenderer";
 import { generate } from "random-words";
+import 'hammerjs';
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
-    let app = new PIXI.Application<HTMLCanvasElement>({ 
-        width: 1200, 
+    let app = new PIXI.Application<HTMLCanvasElement>({
+        width: 1200,
         height: 800,
         antialias: true,
         autoDensity: true,

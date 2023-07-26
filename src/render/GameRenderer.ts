@@ -5,9 +5,10 @@ import { animalIcons } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
+import { Multitouch } from './Multitouch';
 
 export class GameRenderer {
-    
+
     app: PIXI.Application;
     game: Roots;
     gridRenderer: GridRenderer;
@@ -17,16 +18,22 @@ export class GameRenderer {
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
-    container: PIXI.Container;
+    hexContainer: PIXI.Container;
+    mainContainer: PIXI.Container;
 
     activatedTiles = new Set<Tile>();
 
 
-    constructor(app: PIXI.Application, game: Roots) {
+    constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots) {
         this.app = app;
         this.game = game;
-        this.container = new PIXI.Container();
-        app.stage.addChild(this.container);
+        this.hexContainer = new PIXI.Container();
+        this.mainContainer = new PIXI.Container();
+
+        let multitouch = new Multitouch(app, this.mainContainer);
+        this.hexContainer = multitouch.viewport;
+        app.stage.addChild(this.mainContainer);
+
 
         this.initGroups();
     }
@@ -48,9 +55,9 @@ export class GameRenderer {
         });
         // basicColors.forEach((c, i) => console.log(i, c.toRgbaString()))
         this.groupColors = basicColors;
-        
+
         let nGroups = LevelGenerator.maxGroupIndex;
-        
+
         let paths = animalIcons.split('\n').filter(s => s.length > 0).map(s => s.trim());
         // shuffle paths
         for (let i = paths.length - 1; i > 0; i--) {
@@ -60,7 +67,7 @@ export class GameRenderer {
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
         .map(i => paths[i % paths.length])
     }
-    
+
 
     isTileActive(tile: Tile) : boolean {
         return this.activatedTiles.has(tile);
@@ -127,11 +134,11 @@ export class GameRenderer {
 
     start() {
         this.app.ticker.add(delta => {
-            this.update(delta);  
+            this.update(delta);
         });
         this.gridRenderer = new GridRenderer(this, this.game.grid);
         this.gridRenderer.init();
-        this.container.addChild(this.gridRenderer.container);
+        this.hexContainer.addChild(this.gridRenderer.container);
 
         // this.gridRenderer.graphics.x = this.app.screen.width / 2;
         // this.gridRenderer.graphics.y = this.app.screen.height / 2;
@@ -146,7 +153,7 @@ export class GameRenderer {
             sprite.endFill();
             sprite.x = xPadding + (i + 1) * 25;
             sprite.y = height;
-            this.container.addChild(sprite);
+            this.mainContainer.addChild(sprite);
             return sprite;
         });
         this.stonePieceRenderers = Array.from(new Array(this.game.nStonePiecesPerStone).keys()).map(i => {
@@ -160,7 +167,7 @@ export class GameRenderer {
 
             sprite.x = xPadding;
             sprite.y = height;
-            this.container.addChild(sprite);
+            this.mainContainer.addChild(sprite);
             return sprite;
         });
         let sprite = new PIXI.Graphics();
@@ -169,7 +176,7 @@ export class GameRenderer {
         sprite.drawCircle(0, 0, radius);
         sprite.x = xPadding;
         sprite.y = height;
-        this.container.addChild(sprite);
+        this.mainContainer.addChild(sprite);
         this.updateStones();
     }
 

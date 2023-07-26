@@ -21,9 +21,9 @@ export class GridRenderer {
         this.container.sortableChildren = true;
 
         let width = (renderer.game.width + 1) * tileSize * Math.sqrt(3);
-        // let height = renderer.game.height * tileSize * 1.5;
-        this.container.x = this.renderer.app.screen.width / 2 - width / 2;
-        this.container.y = 40;
+        let height = renderer.game.height * tileSize * 1.5;
+        this.container.x = -width / 2;
+        this.container.y = -height / 2;
         console.log(width);
     }
 
@@ -46,7 +46,7 @@ export class GridRenderer {
         this.hoverGroupIndex = hover ? index : -1;
         this.children
         .filter(hexRenderer => {
-            return hexRenderer.tile.groupIndex === oldIndex || 
+            return hexRenderer.tile.groupIndex === oldIndex ||
                 hexRenderer.tile.groupIndex === index
         })
         .forEach(hexRenderer => {

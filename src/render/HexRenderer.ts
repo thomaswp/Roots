@@ -69,12 +69,15 @@ export class HexRenderer extends Container {
 
         graphics.interactive = true;
 
-        graphics.onmouseenter = () => {
+        // TODO: Move this to the input manager
+        // TODO: Ignore events while panning/zooming
+        graphics.onpointerenter = graphics.onmouseenter = () => {
             if (this.tile.unlocked || this.tile.groupIndex === undefined) return;
             this.hovered = true;
             this.gridRenderer.updateHover(tile.groupIndex, true);
         }
-        graphics.onmouseleave = () => {
+        graphics.onpointerleave = graphics.onmouseleave =
+        graphics.onpointerup = graphics.onmouseup = () => {
             this.hovered = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
         }
@@ -82,13 +85,29 @@ export class HexRenderer extends Container {
             this.renderer.clearActiveTiles();
         }
         let lastCliked = 0;
-        graphics.onclick = (e) => {
+        graphics.ontap = graphics.onclick = (e) => {
             console.log('clicked', tile.id);
             if (this.tile.unlocked) return;
-            let doubleClick = Date.now() - lastCliked < 400;
+            let selectAll = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
-            if (doubleClick) {
+
+            let activatedTiles = this.renderer.activatedTiles;
+            // If a tile is clicked and all the tiles in that group are selected, we probably
+            // just activated them all with a click, so we should also deactivate them
+            if (activatedTiles.size == tile.groupCount &&
+                [...activatedTiles.keys()].every(t => t.groupIndex === tile.groupIndex)
+            ) {
+                this.renderer.clearActiveTiles();
+                return;
+            }
+
+            // Select all if this is the first click and we can (why not...)
+            if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount) {
+                selectAll = true;
+            }
+
+            if (selectAll) {
                 this.renderer.activateGroup(tile);
             } else if (!this.active) {
                 this.renderer.activateTile(tile);
@@ -167,9 +186,9 @@ export class HexRenderer extends Container {
     getGroupColor() : PIXI.Color {
         return this.gridRenderer.renderer.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
     }
-    
 
-    refresh() {        
+
+    refresh() {
         let tile = this.tile;
         let hex = this.hex;
 
@@ -185,7 +204,7 @@ export class HexRenderer extends Container {
         let lineColor;
         let zIndex = 0;
         if (tile.unlocked) {
-            // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb); 
+            // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb);
             lineColor = 0xeeeeee;
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
