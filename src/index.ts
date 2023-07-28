@@ -7,8 +7,9 @@ import 'hammerjs';
 window.onload = function() {
     // Create the application helper and add its render target to the page
     let app = new PIXI.Application<HTMLCanvasElement>({
-        width: window.innerWidth,
-        height: window.innerHeight,
+        // TODO: Unclear why -2 is necessary...
+        width: document.documentElement.clientWidth - 2,
+        height: document.documentElement.clientHeight - 2,
         antialias: true,
         autoDensity: true,
     });
