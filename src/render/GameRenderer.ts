@@ -140,7 +140,7 @@ export class GameRenderer {
         });
         this.gridRenderer = new GridRenderer(this, this.game.grid);
 
-        this.multitouch = new Multitouch(this.app, this.mainContainer, this.gridRenderer.width, this.gridRenderer.height);
+        this.multitouch = new Multitouch(this, this.mainContainer, this.gridRenderer.width, this.gridRenderer.height);
         this.hexContainer = this.multitouch.viewport;
 
         this.gridRenderer.init();

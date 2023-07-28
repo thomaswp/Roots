@@ -2,11 +2,13 @@ import * as PIXI from 'pixi.js';
 import 'hammerjs'
 import e from 'express';
 import { lerp } from '../util/MathUtil';
+import { GameRenderer } from './GameRenderer';
 
 export class Multitouch {
 
     readonly viewport: PIXI.Container;
     readonly app: PIXI.Application<HTMLCanvasElement>;
+    readonly renderer: GameRenderer;
 
     readonly width: number;
     readonly height: number;
@@ -26,9 +28,9 @@ export class Multitouch {
     private panVelocity: PIXI.Point = new PIXI.Point(0, 0);
     private targetScale: number;
 
-    private justFinishedGesturing = false;
+    private updatesSinceLastGesture = 0;
     public get isGesturing() : boolean {
-        return this.pinchStartScale !== undefined || this.panStart !== undefined || this.justFinishedGesturing;
+        return this.pinchStartScale !== undefined || this.panStart !== undefined || this.updatesSinceLastGesture < 5;
     }
 
     public get scale() : number {
@@ -40,8 +42,9 @@ export class Multitouch {
     }
 
 
-    constructor(app: PIXI.Application<HTMLCanvasElement>, parent: PIXI.Container, width: number, height: number) {
-        this.app = app;
+    constructor(renderer: GameRenderer, parent: PIXI.Container, width: number, height: number) {
+        this.renderer = renderer;
+        let app = this.app = renderer.app;
         this.viewport = this.panViewport = new PIXI.Container();
         this.scaleViewport = new PIXI.Container();
         this.scaleViewport.x = app.view.width / 2;
@@ -78,31 +81,55 @@ export class Multitouch {
         });
         this.hammer.on('pinchend', (e) => {
             this.pinchStartScale = undefined;
-            this.justFinishedGesturing = true;
+            this.updatesSinceLastGesture = 0;
         });
 
-        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5, pointers: 1 });
+        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 10, pointers: 1 })
+        // TODO: Need a better way to stop pan from occurring at the end of pinch.
+        .requireFailure(this.hammer.get('pinch'));
 
+
+        let maxDistance = new PIXI.Point();
         this.hammer.on('panstart', (e) => {
             if (this.panStart !== undefined) return;
             this.panStart = new PIXI.Point(this.panViewport.x, this.panViewport.y);
             this.panVelocity.set(0, 0);
+            maxDistance.set(0, 0);
         });
         this.hammer.on('panmove', (e) => {
+            if (this.panStart === undefined) return;
+            maxDistance.x = Math.max(Math.abs(e.deltaX), maxDistance.x);
+            maxDistance.y = Math.max(Math.abs(e.deltaY), maxDistance.y);
+            let totalDistance = Math.sqrt(maxDistance.x * maxDistance.x + maxDistance.y * maxDistance.y);
+
+            // If we haven't moved much, then cancel the pan.
+            if (e.deltaTime > 300 && totalDistance < 50) {
+                this.panStart = undefined;
+                return;
+            }
+
             this.targetPan.set(
                 this.panStart.x + e.deltaX / this.scale,
                 this.panStart.y + e.deltaY / this.scale
             );
         });
         this.hammer.on('panend', (e) => {
+            if (this.panStart === undefined) return;
             this.panStart = undefined;
             this.panVelocity.set(e.velocityX, e.velocityY);
-            this.justFinishedGesturing = true;
+            this.updatesSinceLastGesture = 0;
+        });
+
+        this.hammer.get('tap').set({ pointers: 2, enable: true})
+        .recognizeWith(this.hammer.get('pinch'));
+        this.hammer.on('tap', (e) => {
+            this.renderer.clearActiveTiles();
+            this.updatesSinceLastGesture = 0;
         });
     }
 
     update(delta: number) {
-        this.justFinishedGesturing = false;
+        this.updatesSinceLastGesture++;
 
         let velocityScale = 6
         this.targetPan.x += this.panVelocity.x * delta / this.scale * velocityScale;
