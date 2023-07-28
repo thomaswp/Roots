@@ -80,9 +80,9 @@ export class HexRenderer extends Container {
 
         graphics.interactive = true;
 
-        // TODO: Move this to the input manager
-        // TODO: Ignore events while panning/zooming
+        let isGesturing = () => this.renderer.multitouch.isGesturing;
         graphics.onpointerenter = graphics.onmouseenter = () => {
+            if (isGesturing()) return;
             if (this.tile.unlocked || this.tile.groupIndex === undefined) return;
             this.hovered = true;
             this.gridRenderer.updateHover(tile.groupIndex, true);
@@ -98,6 +98,7 @@ export class HexRenderer extends Container {
         let lastCliked = 0;
         graphics.ontap = graphics.onclick = (e) => {
             console.log('clicked', tile.id);
+            if (isGesturing()) return;
             if (this.tile.unlocked) return;
             let selectAll = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);

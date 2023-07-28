@@ -5,17 +5,31 @@ import { lerp } from '../util/MathUtil';
 
 export class Multitouch {
 
-    minScale = 1;
-    // TODO: base on screen size
-    maxScale = 4;
+    readonly viewport: PIXI.Container;
+    readonly app: PIXI.Application<HTMLCanvasElement>;
 
-    hammer: HammerManager;
-    viewport: PIXI.Container;
+    readonly width: number;
+    readonly height: number;
+
+    private minScale = 1;
+    private maxScale = 4;
+
+    private hammer: HammerManager;
+
     private panViewport: PIXI.Container;
     private scaleViewport: PIXI.Container;
 
-    panStart: PIXI.Point;
-    pinchStartScale: number;
+    private panStart: PIXI.Point;
+    private pinchStartScale: number;
+
+    private targetPan: PIXI.Point = new PIXI.Point(0, 0);
+    private panVelocity: PIXI.Point = new PIXI.Point(0, 0);
+    private targetScale: number;
+
+    private justFinishedGesturing = false;
+    public get isGesturing() : boolean {
+        return this.pinchStartScale !== undefined || this.panStart !== undefined || this.justFinishedGesturing;
+    }
 
     public get scale() : number {
         return this.scaleViewport.scale.x;
@@ -25,20 +39,17 @@ export class Multitouch {
         this.scaleViewport.scale.x = this.scaleViewport.scale.y = value;
     }
 
-    width: number;
-    height: number;
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, parent: PIXI.Container, width: number, height: number) {
+        this.app = app;
         this.viewport = this.panViewport = new PIXI.Container();
         this.scaleViewport = new PIXI.Container();
         this.scaleViewport.x = app.view.width / 2;
         this.scaleViewport.y = app.view.height / 2;
 
-        console.log(app.view.height, height);
-        console.log(app.view.width, width);
         this.minScale = Math.min(app.view.width / width, app.view.height / height);
 
-        this.scale = this.minScale;
+        this.scale = this.targetScale = this.minScale;
 
         this.width = width;
         this.height = height;
@@ -63,48 +74,64 @@ export class Multitouch {
             let targetScale = this.pinchStartScale * e.scale;
             if (targetScale < this.minScale) targetScale = this.minScale;
             if (targetScale > this.maxScale) targetScale = this.maxScale;
-            // if (Math.abs(Math.log(e.scale)) < 0.05) targetScale = this.pinchStartScale;
-            let lerpRate = 0.05;
-            this.scale = lerp(this.scale, targetScale, lerpRate, 0.5);
+            this.targetScale = targetScale;
         });
         this.hammer.on('pinchend', (e) => {
             this.pinchStartScale = undefined;
+            this.justFinishedGesturing = true;
         });
 
-        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5, pointers: 1 })
-            .recognizeWith(this.hammer.get('pinch'));
+        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5, pointers: 1 });
 
         this.hammer.on('panstart', (e) => {
             if (this.panStart !== undefined) return;
             this.panStart = new PIXI.Point(this.panViewport.x, this.panViewport.y);
+            this.panVelocity.set(0, 0);
         });
         this.hammer.on('panmove', (e) => {
-            let lerpRate = 0.2;
-
-            let targetX = this.panStart.x + e.deltaX / this.scale;
-            let targetY = this.panStart.y + e.deltaY / this.scale;
-
-            let scale = this.scale;
-
-            // TODO: Use grid height/width instead of app view
-            // Demon magic: do not mess with
-            let boundsX = Math.max((-app.view.width / scale + this.width) / 2, 0);
-            let boundsY = Math.max((-app.view.height / scale + this.height) / 2, 0);
-            // console.log('target', targetX, targetY);
-            // console.log('bounds', boundsX, boundsY);
-            if (targetX < -boundsX) targetX = -boundsX;
-            if (targetX > boundsX) targetX = boundsX;
-            if (targetY < -boundsY) targetY = -boundsY;
-            if (targetY > boundsY) targetY = boundsY;
-
-
-
-            // TODO: lerp should happen in update based on ideal value, so it doesn't stop at panend
-            this.panViewport.x = lerp(this.panViewport.x, targetX, lerpRate, 0.5);
-            this.panViewport.y = lerp(this.panViewport.y, targetY, lerpRate, 0.5);
+            this.targetPan.set(
+                this.panStart.x + e.deltaX / this.scale,
+                this.panStart.y + e.deltaY / this.scale
+            );
         });
         this.hammer.on('panend', (e) => {
             this.panStart = undefined;
+            this.panVelocity.set(e.velocityX, e.velocityY);
+            this.justFinishedGesturing = true;
         });
+    }
+
+    update(delta: number) {
+        this.justFinishedGesturing = false;
+
+        let velocityScale = 6
+        this.targetPan.x += this.panVelocity.x * delta / this.scale * velocityScale;
+        this.targetPan.y += this.panVelocity.y * delta / this.scale * velocityScale;
+
+        let friction = 0.95;
+        this.panVelocity.x *= friction;
+        this.panVelocity.y *= friction;
+
+        let targetX = this.targetPan.x;
+        let targetY = this.targetPan.y;
+
+        let targetScale = this.targetScale;
+
+        let lerpRate = 0.2 * delta;
+        this.scale = lerp(this.scale, targetScale, lerpRate, 0.005);
+
+        // Demon magic: do not mess with
+        let boundsX = Math.max((-this.app.view.width / 2 / this.scale + this.width * 0.7), 0);
+        let boundsY = Math.max((-this.app.view.height / 2 / this.scale + this.height * 0.7), 0);
+        // console.log('target', targetX, targetY);
+        // console.log('bounds', boundsX, boundsY);
+        if (targetX < -boundsX) targetX = -boundsX;
+        if (targetX > boundsX) targetX = boundsX;
+        if (targetY < -boundsY) targetY = -boundsY;
+        if (targetY > boundsY) targetY = boundsY;
+
+        lerpRate = 0.6 * delta;
+        this.panViewport.x = lerp(this.panViewport.x, targetX, lerpRate, 0.5);
+        this.panViewport.y = lerp(this.panViewport.y, targetY, lerpRate, 0.5);
     }
 }

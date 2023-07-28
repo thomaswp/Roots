@@ -11,6 +11,7 @@ export class GameRenderer {
 
     app: PIXI.Application<HTMLCanvasElement>;
     game: Roots;
+    multitouch: Multitouch;
     gridRenderer: GridRenderer;
 
     groupAnimalPaths: string[];
@@ -139,8 +140,8 @@ export class GameRenderer {
         });
         this.gridRenderer = new GridRenderer(this, this.game.grid);
 
-        let multitouch = new Multitouch(this.app, this.mainContainer, this.gridRenderer.width, this.gridRenderer.height);
-        this.hexContainer = multitouch.viewport;
+        this.multitouch = new Multitouch(this.app, this.mainContainer, this.gridRenderer.width, this.gridRenderer.height);
+        this.hexContainer = this.multitouch.viewport;
 
         this.gridRenderer.init();
         this.hexContainer.addChild(this.gridRenderer.container);
@@ -187,5 +188,6 @@ export class GameRenderer {
 
     update(delta: number) {
         this.gridRenderer.update(delta);
+        this.multitouch.update(delta);
     }
 }
