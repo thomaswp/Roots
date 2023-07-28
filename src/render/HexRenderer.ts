@@ -31,6 +31,14 @@ export class HexRenderer extends Container {
         return this.renderer.isTileActive(this.tile);
     }
 
+    get tileCenterX() : number {
+        return -this.tile.center.x + this.tile.width / 2;
+    }
+
+    get tileCenterY() : number {
+        return -this.tile.center.y + this.tile.height / 2;
+    }
+
     constructor(tile: Tile, gridRenderer: GridRenderer) {
         super();
         this.gridRenderer = gridRenderer;
@@ -40,8 +48,11 @@ export class HexRenderer extends Container {
         this.createIcon();
         this.addInteraction();
 
-        this.x = -tile.center.x + tile.width / 2;
-        this.y = -tile.center.y + tile.height / 2;
+        this.x = this.renderer.invertAxes ? this.tileCenterY : this.tileCenterX;
+        this.y = this.renderer.invertAxes ? this.tileCenterX : this.tileCenterY;
+        if (this.renderer.invertAxes) {
+            this.hex.rotation = this.border.rotation = Math.PI / 2;
+        }
 
         this.refresh();
     }

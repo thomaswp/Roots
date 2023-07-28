@@ -17,15 +17,31 @@ export class Multitouch {
     panStart: PIXI.Point;
     pinchStartScale: number;
 
-    get scale() : number {
+    public get scale() : number {
         return this.scaleViewport.scale.x;
     }
 
-    constructor(app: PIXI.Application<HTMLCanvasElement>, parent: PIXI.Container) {
+    private set scale(value: number) {
+        this.scaleViewport.scale.x = this.scaleViewport.scale.y = value;
+    }
+
+    width: number;
+    height: number;
+
+    constructor(app: PIXI.Application<HTMLCanvasElement>, parent: PIXI.Container, width: number, height: number) {
         this.viewport = this.panViewport = new PIXI.Container();
         this.scaleViewport = new PIXI.Container();
         this.scaleViewport.x = app.view.width / 2;
         this.scaleViewport.y = app.view.height / 2;
+
+        console.log(app.view.height, height);
+        console.log(app.view.width, width);
+        this.minScale = Math.min(app.view.width / width, app.view.height / height);
+
+        this.scale = this.minScale;
+
+        this.width = width;
+        this.height = height;
 
         // this.scaleViewport.scale.x = this.scaleViewport.scale.y = 2;
 
@@ -49,32 +65,31 @@ export class Multitouch {
             if (targetScale > this.maxScale) targetScale = this.maxScale;
             // if (Math.abs(Math.log(e.scale)) < 0.05) targetScale = this.pinchStartScale;
             let lerpRate = 0.05;
-            this.scaleViewport.scale.x = this.scaleViewport.scale.y =
-                lerp(this.scale, targetScale, lerpRate, 0.5);
+            this.scale = lerp(this.scale, targetScale, lerpRate, 0.5);
         });
         this.hammer.on('pinchend', (e) => {
             this.pinchStartScale = undefined;
         });
 
-        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5, pointers: 2 })
+        this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 5, pointers: 1 })
             .recognizeWith(this.hammer.get('pinch'));
 
         this.hammer.on('panstart', (e) => {
             if (this.panStart !== undefined) return;
-            console.log('pan start!');
             this.panStart = new PIXI.Point(this.panViewport.x, this.panViewport.y);
         });
         this.hammer.on('panmove', (e) => {
-            let lerpRate = 0.1;
+            let lerpRate = 0.2;
 
             let targetX = this.panStart.x + e.deltaX / this.scale;
             let targetY = this.panStart.y + e.deltaY / this.scale;
 
             let scale = this.scale;
 
+            // TODO: Use grid height/width instead of app view
             // Demon magic: do not mess with
-            let boundsX = app.view.width * (scale - 1) / 2 / scale;
-            let boundsY = app.view.height * (scale - 1) / 2 / scale;
+            let boundsX = Math.max((-app.view.width / scale + this.width) / 2, 0);
+            let boundsY = Math.max((-app.view.height / scale + this.height) / 2, 0);
             // console.log('target', targetX, targetY);
             // console.log('bounds', boundsX, boundsY);
             if (targetX < -boundsX) targetX = -boundsX;

@@ -9,7 +9,7 @@ import { Multitouch } from './Multitouch';
 
 export class GameRenderer {
 
-    app: PIXI.Application;
+    app: PIXI.Application<HTMLCanvasElement>;
     game: Roots;
     gridRenderer: GridRenderer;
 
@@ -23,15 +23,16 @@ export class GameRenderer {
 
     activatedTiles = new Set<Tile>();
 
+    invertAxes: boolean = false;
+
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots) {
         this.app = app;
+        this.invertAxes = app.view.width < app.view.height;
         this.game = game;
         this.hexContainer = new PIXI.Container();
         this.mainContainer = new PIXI.Container();
 
-        let multitouch = new Multitouch(app, this.mainContainer);
-        this.hexContainer = multitouch.viewport;
         app.stage.addChild(this.mainContainer);
 
 
@@ -137,6 +138,10 @@ export class GameRenderer {
             this.update(delta);
         });
         this.gridRenderer = new GridRenderer(this, this.game.grid);
+
+        let multitouch = new Multitouch(this.app, this.mainContainer, this.gridRenderer.width, this.gridRenderer.height);
+        this.hexContainer = multitouch.viewport;
+
         this.gridRenderer.init();
         this.hexContainer.addChild(this.gridRenderer.container);
 

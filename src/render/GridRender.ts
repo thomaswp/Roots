@@ -14,17 +14,22 @@ export class GridRenderer {
     children: HexRenderer[] = [];
     hoverGroupIndex: number = -1;
 
+    width: number;
+    height: number;
+
     constructor(renderer: GameRenderer, grid: Grid<Tile>) {
         this.grid = grid;
         this.renderer = renderer;
         this.container = new PIXI.Container();
         this.container.sortableChildren = true;
 
-        let width = (renderer.game.width + 1) * tileSize * Math.sqrt(3);
-        let height = renderer.game.height * tileSize * 1.5;
-        this.container.x = -width / 2;
-        this.container.y = -height / 2;
-        console.log(width);
+        this.width = (renderer.game.width + 1) * tileSize * Math.sqrt(3);
+        this.height = (renderer.game.height + 0.5) * tileSize * 1.5;
+        if (this.renderer.invertAxes) {
+            [this.width, this.height] = [this.height, this.width];
+        }
+        this.container.x = -this.width / 2;
+        this.container.y = -this.height / 2;
     }
 
     init() {

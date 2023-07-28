@@ -7,12 +7,14 @@ import 'hammerjs';
 window.onload = function() {
     // Create the application helper and add its render target to the page
     let app = new PIXI.Application<HTMLCanvasElement>({
-        width: 1200,
-        height: 800,
+        width: window.innerWidth,
+        height: window.innerHeight,
         antialias: true,
         autoDensity: true,
     });
     document.body.appendChild(app.view);
+
+    // TODO: Resize app on resize events and update things...
 
     // Bug in the library - gives back a string, rather than a string[].
     let seed = generate({minLength: 4, maxLength: 8}) as unknown as string;
