@@ -44,6 +44,8 @@ export class TutorialRenderer {
 
             }
         },
+        // TODO: Add one and try to match - run out of stones
+        // TODO: Clear with two fingers or right click
         {
             name: 'match',
             isReady: () => this.renderer.activatedTiles.size == 0,
@@ -72,6 +74,8 @@ export class TutorialRenderer {
                 this.updateShowing(this.currentMoveset.slice(0, this.currentMoveset.length));
             }
         },
+        // TODO: Combine second and third moveset
+        // TODO: On mobile, explain panning
         {
             name: 'second moveset',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
@@ -88,6 +92,8 @@ export class TutorialRenderer {
                 this.updateShowing(this.currentMoveset);
             }
         },
+        // TODO: Enable and explain first click together after 2 stone pieces
+        // TODO: Use fixed seed for fixed order: introduce gap (step by step) and then tripple
         {
             name: 'extra stone',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
@@ -101,6 +107,9 @@ export class TutorialRenderer {
                 this.updateShowing([...nextMove, ...showing]);
             }
         },
+        // TODO: Show all 2s and 3s: Talk about colors
+        // TODO: Show 4, 5, and 6s discussing each
+        // TODO: Tutorial finish
     ];
 
     constructor(renderer: GameRenderer) {
