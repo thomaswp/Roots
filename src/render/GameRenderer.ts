@@ -6,6 +6,7 @@ import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
 import { Multitouch } from './Multitouch';
+import { TutorialRenderer } from './TutorialRenderer';
 
 export class GameRenderer {
 
@@ -13,6 +14,7 @@ export class GameRenderer {
     game: Roots;
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
+    tutorialRenderer: TutorialRenderer;
 
     groupAnimalPaths: string[];
     groupColors: PIXI.Color[];
@@ -82,6 +84,10 @@ export class GameRenderer {
         this.activatedTiles.add(tile);
         this.updateStones();
         if (!silently) this.sendActiveTiles();
+
+        if (this.tutorialRenderer) {
+            this.tutorialRenderer.step();
+        }
         return true;
     }
 
@@ -109,13 +115,13 @@ export class GameRenderer {
     private sendActiveTiles() {
         if (this.game.tryActivating(this.activatedTiles)) {
             this.clearActiveTiles();
-            this.hint(); // TODO: Remove
         }
     }
 
     refresh() {
         this.updateStones();
         this.gridRenderer.refresh();
+        this.tutorialRenderer.step();
     }
 
     updateStones() {
@@ -133,17 +139,6 @@ export class GameRenderer {
 
     iconPathForGroupIndex(index: number) : string {
         return `img/animals/${this.groupAnimalPaths[index]}`;
-    }
-
-    hint() {
-        let lockedHexes = this.gridRenderer.hexes.filter(t => !t.tile.unlocked && t.tile.groupIndex !== undefined);
-        let minIndex = lockedHexes.reduce((min, hex) => Math.min(min, hex.tile.groupIndex), Number.MAX_VALUE);
-        console.log(minIndex);
-        let nextMatch = lockedHexes.filter(t => t.tile.groupIndex == minIndex);
-        this.multitouch.show(nextMatch);
-        console.log(nextMatch);
-        this.activateTile(nextMatch[0].tile);
-        nextMatch[0].refresh();
     }
 
     start() {
@@ -197,8 +192,8 @@ export class GameRenderer {
         this.mainContainer.addChild(sprite);
         this.updateStones();
 
-        // TODO: Remove
-        this.hint();
+        // this.tutorialRenderer = new TutorialRenderer(this);
+        // this.tutorialRenderer.step();
     }
 
     update(delta: number) {

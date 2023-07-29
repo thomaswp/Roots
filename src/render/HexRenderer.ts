@@ -11,7 +11,6 @@ export class HexRenderer extends Container {
     icon: SpriteH;
     hex: PIXI.Graphics;
     border: PIXI.Graphics;
-    hovered: boolean = false;
     gridRenderer: GridRenderer;
 
     private flipValue: number = 0;
@@ -22,6 +21,8 @@ export class HexRenderer extends Container {
     private targetScale = 1;
     private hovering = false;
     private hoveringTime = 0;
+
+    private hidden = false;
 
     get renderer() : GameRenderer {
         return this.gridRenderer.renderer;
@@ -57,6 +58,11 @@ export class HexRenderer extends Container {
         this.refresh();
     }
 
+    setHidden(hidden: boolean) {
+        this.hidden = hidden;
+        this.refresh();
+    }
+
     createIcon() {
         let texture = null;
         if (this.tile.groupIndex !== undefined) {
@@ -82,21 +88,27 @@ export class HexRenderer extends Container {
 
         let isGesturing = () => this.renderer.multitouch.isGesturing;
         graphics.onpointerenter = graphics.onmouseenter = () => {
+            if (this.hidden) return;
             if (isGesturing()) return;
-            if (this.tile.unlocked || this.tile.groupIndex === undefined) return;
-            this.hovered = true;
+            if (this.tile.unlocked) return;
+            this.hovering = true;
             this.gridRenderer.updateHover(tile.groupIndex, true);
+            this.refresh();
         }
         graphics.onpointerleave = graphics.onmouseleave =
         graphics.onpointerup = graphics.onmouseup = () => {
-            this.hovered = false;
+            if (this.hidden) return;
+            this.hovering = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
+            this.refresh();
         }
         graphics.onrightclick = (e) => {
+            if (this.hidden) return;
             this.renderer.clearActiveTiles();
         }
         let lastCliked = 0;
         graphics.ontap = graphics.onclick = (e) => {
+            if (this.hidden) return;
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
@@ -167,7 +179,8 @@ export class HexRenderer extends Container {
             this.flipValue = Math.max(0, this.flipValue - delta * 0.07);
         } else {
             let targetScale = this.targetScale;
-            if (this.hovering && targetScale == 1) {
+            let hovering = this.hovering || this.gridRenderer.hoverGroupIndex === this.tile.groupIndex;
+            if (hovering && targetScale == 1) {
                 this.hoveringTime += delta;
                 // targetColor = lerpHexColor(targetColor, 0x777777, -Math.cos(this.hoveringTime * 0.06) * 0.5 + 0.5);
                 targetScale = lerp(targetScale, 1.08, -Math.cos(this.hoveringTime * 0.08) * 0.5 + 0.5, 0.005);
@@ -188,6 +201,10 @@ export class HexRenderer extends Container {
             lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
             lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005)
         );
+
+        if (!this.hidden && this.alpha < 1) {
+            this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
+        }
     }
 
     unlock() {
@@ -204,12 +221,16 @@ export class HexRenderer extends Container {
         let tile = this.tile;
         let hex = this.hex;
 
+        if (this.hidden) {
+            this.alpha = 0;
+        }
+
         if (tile.unlocked && !this.unlocked) {
             this.unlock();
         }
 
         let active = tile.unlocked || this.active;
-        let hovering = this.hovering = this.gridRenderer.hoverGroupIndex === tile.groupIndex;
+        let hovering = this.hovering || this.gridRenderer.hoverGroupIndex === tile.groupIndex;
 
         let groupCountColor = this.getGroupColor();
 
@@ -243,7 +264,6 @@ export class HexRenderer extends Container {
         this.targetBorderColor = lineColor;
         this.targetIconColor.setValue(this.active ? 0xffffff : 0x000000);
         this.targetScale = this.active ? 1.08 : 1;
-
 
         if (hovering) {
             this.targetHexColor = 0xeeeeee;

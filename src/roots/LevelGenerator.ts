@@ -39,9 +39,11 @@ class Moveset {
     readonly moves: Tile[][] = [];
     stones: number;
     stonePieces: number = 0;
+    index: number;
 
-    constructor(stones: number) {
+    constructor(stones: number, index: number) {
         this.stones = stones;
+        this.index = index;
     }
 
     get footprintRadius() {
@@ -50,6 +52,7 @@ class Moveset {
 
     addMove(move: Tile[]) {
         this.moves.push(move);
+        move.forEach(tile => tile.movesetIndex = this.index);
         move.forEach(tile => {
             this.tiles.add(tile);
             this.addFootprint(tile, this.footprint, this.footprintRadius);
@@ -269,7 +272,7 @@ export class LevelGenerator {
             let move = createMove(baseTile, null, allFootprints);
             if (move == null) return null;
 
-            let moveset = new Moveset(stones);
+            let moveset = new Moveset(stones, movesets.length);
             moveset.addMove(move);
             return moveset;
         };

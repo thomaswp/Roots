@@ -154,8 +154,6 @@ export class Multitouch {
 
         let targetScale = Math.min(this.app.view.width / width, this.app.view.height / height);
         this.targetScale = Math.min(targetScale, this.maxScale);
-
-        console.log(min, max, targetScale);
     }
 
     update(delta: number) {
