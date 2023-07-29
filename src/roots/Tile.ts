@@ -10,7 +10,7 @@ export type TileData = {
 export const tileSize = 30;
 
 export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" }) {
-  
+
     // serializable fields
     id: number;
     groupIndex: number;
@@ -36,7 +36,7 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
         this.groupIndex = data.groupIndex;
         this.isStoneTile = data.isStoneTile;
     }
-  
+
     // isPassable() {
     //     return this.active || this.unlocked;
     // }

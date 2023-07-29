@@ -109,6 +109,7 @@ export class GameRenderer {
     private sendActiveTiles() {
         if (this.game.tryActivating(this.activatedTiles)) {
             this.clearActiveTiles();
+            this.hint(); // TODO: Remove
         }
     }
 
@@ -132,6 +133,17 @@ export class GameRenderer {
 
     iconPathForGroupIndex(index: number) : string {
         return `img/animals/${this.groupAnimalPaths[index]}`;
+    }
+
+    hint() {
+        let lockedHexes = this.gridRenderer.hexes.filter(t => !t.tile.unlocked && t.tile.groupIndex !== undefined);
+        let minIndex = lockedHexes.reduce((min, hex) => Math.min(min, hex.tile.groupIndex), Number.MAX_VALUE);
+        console.log(minIndex);
+        let nextMatch = lockedHexes.filter(t => t.tile.groupIndex == minIndex);
+        this.multitouch.show(nextMatch);
+        console.log(nextMatch);
+        this.activateTile(nextMatch[0].tile);
+        nextMatch[0].refresh();
     }
 
     start() {
@@ -184,6 +196,9 @@ export class GameRenderer {
         sprite.y = height;
         this.mainContainer.addChild(sprite);
         this.updateStones();
+
+        // TODO: Remove
+        this.hint();
     }
 
     update(delta: number) {
