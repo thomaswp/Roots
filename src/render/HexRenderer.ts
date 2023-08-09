@@ -19,8 +19,10 @@ export class HexRenderer extends Container {
     private targetHexColor = 0xffffff;
     private targetIconColor = new PIXI.Color(0x000000);
     private targetScale = 1;
+    private targetZIndex = 0;
     private hovering = false;
     private hoveringTime = 0;
+    private errorPerc = 0;
 
     private hidden = false;
 
@@ -116,25 +118,30 @@ export class HexRenderer extends Container {
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
 
-            let activatedTiles = this.renderer.activatedTiles;
-            // If a tile is clicked and all the tiles in that group are selected, we probably
-            // just activated them all with a click, so we should also deactivate them
-            if (activatedTiles.size == tile.groupCount &&
-                [...activatedTiles.keys()].every(t => t.groupIndex === tile.groupIndex)
-            ) {
-                this.renderer.clearActiveTiles();
-                return;
-            }
+            if (this.renderer.autoSelectGroup) {
+                let activatedTiles = this.renderer.activatedTiles;
+                // If a tile is clicked and all the tiles in that group are selected, we probably
+                // just activated them all with a click, so we should also deactivate them
+                if (activatedTiles.size == tile.groupCount &&
+                    [...activatedTiles.keys()].every(t => t.groupIndex === tile.groupIndex)
+                ) {
+                    this.renderer.clearActiveTiles();
+                    return;
+                }
 
-            // Select all if this is the first click and we can (why not...)
-            if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount) {
-                selectAll = true;
+                // Select all if this is the first click and we can (why not...)
+                if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount)
+                {
+                    selectAll = true;
+                }
             }
 
             if (selectAll) {
                 this.renderer.activateGroup(tile);
             } else if (!this.active) {
-                this.renderer.activateTile(tile);
+                if (!this.renderer.activateTile(tile)) {
+                    this.showError();
+                }
             } else {
                 this.renderer.deactivateTile(tile);
             }
@@ -173,6 +180,10 @@ export class HexRenderer extends Container {
         this.addChild(border);
     }
 
+    showError() {
+        this.errorPerc = 1;
+    }
+
     update(delta: number) {
         if (this.flipValue > 0) {
             this.scale.x = Math.abs(Math.cos(this.flipValue * Math.PI));
@@ -192,9 +203,23 @@ export class HexRenderer extends Container {
 
         let colorShiftSpeed = 0.25;
         let targetColor = this.targetHexColor;
+        let targetBorderColor = this.targetBorderColor;
+        let targetZIndex = this.targetZIndex;
+
+        // Adjust the target border color to show error red
+        if (this.errorPerc > 0) {
+            this.errorPerc = Math.max(0, this.errorPerc - delta * 0.1);
+            // let perc = Math.cos(this.errorPerc * Math.PI) * -0.5 + 0.5;
+            // targetBorderColor = lerpHexColor(targetBorderColor, 0xff0000, perc, 0.005);
+            this.rotation = Math.sin(this.errorPerc * Math.PI) * 0.6;
+            targetColor = targetBorderColor = 0xffffff;
+            colorShiftSpeed = 1;
+            targetZIndex = 5;
+        }
+
         this.hex.tint = lerpHexColor(this.hex.tint, targetColor, delta * colorShiftSpeed);
-        // console.log(this.targetHexColor, this.hex.tint);
-        this.border.tint = lerpHexColor(this.border.tint, this.targetBorderColor, delta * colorShiftSpeed);
+        this.border.tint = lerpHexColor(this.border.tint, targetBorderColor, delta * colorShiftSpeed);
+        this.zIndex = targetZIndex;
 
         this.icon.color.setDark(
             lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
@@ -259,7 +284,7 @@ export class HexRenderer extends Container {
             zIndex += 0.5;
             // this.icon.color.setDark(groupCountColor.red * 0.7, groupCountColor.green * 0.7, groupCountColor.blue * 0.7);
         }
-        this.zIndex = zIndex;
+        this.targetZIndex = zIndex;
 
         this.targetBorderColor = lineColor;
         this.targetIconColor.setValue(this.active ? 0xffffff : 0x000000);

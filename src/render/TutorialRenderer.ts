@@ -27,25 +27,49 @@ export class TutorialRenderer {
         return this.renderer.multitouch;
     }
 
+    isError: boolean = false;
+
     tutorialStepIndex = 0;
     tutorialSteps: TutorialStep[] = [
         {
-            name: 'activate',
+            name: 'activate first',
             // TODO: probably better to make this "isDone" and advance then
             isReady: () => true,
             activate: () => {
+                this.renderer.autoSelectGroup = false;
                 this.updateShowing(this.currentMoveset.slice(2, 4));
             }
         },
         {
-            name: 'deactivate',
-            isReady: () => this.renderer.activatedTiles.size == 2,
+            name: 'activate second',
+            isReady: () => true,
             activate: () => {
-
+                // TODO: Show message
             }
         },
-        // TODO: Add one and try to match - run out of stones
-        // TODO: Clear with two fingers or right click
+        {
+            name: 'show mddle',
+            isReady: () => this.renderer.activatedTiles.size == 2,
+            activate: () => {
+                let showing = this.currentMoveset.slice(2, 4);
+                let grid = this.renderer.game.grid;
+                let toShow = this.currentMoveset.slice(0, 2).filter(r => {
+                    console.log(grid.distance(r.tile, showing[0].tile) == 1,
+                    grid.distance(r.tile, showing[1].tile));
+                    return grid.distance(r.tile, showing[0].tile) == 1 &&
+                        grid.distance(r.tile, showing[1].tile) == 1;
+
+                });
+                this.updateShowing(toShow);
+            }
+        },
+        {
+            name: 'deactivate',
+            isReady: () => this.isError,
+            activate: () => {
+                // TODO: Show deactivate message
+            }
+        },
         {
             name: 'match',
             isReady: () => this.renderer.activatedTiles.size == 0,
@@ -65,6 +89,14 @@ export class TutorialRenderer {
             isReady: () => this.currentMoveset[2].tile.unlocked,
             activate: () => {
                 this.updateShowing(this.currentMoveset.slice(0, this.currentMoveset.length - 2));
+
+            }
+        },
+        {
+            name: 'auto select',
+            isReady: () => this.tiles.filter(t => t.unlocked).length > 4,
+            activate: () => {
+                this.renderer.autoSelectGroup = true;
             }
         },
         {
@@ -92,7 +124,6 @@ export class TutorialRenderer {
                 this.updateShowing(this.currentMoveset);
             }
         },
-        // TODO: Enable and explain first click together after 2 stone pieces
         // TODO: Use fixed seed for fixed order: introduce gap (step by step) and then tripple
         {
             name: 'extra stone',
@@ -132,7 +163,8 @@ export class TutorialRenderer {
         .sort((a, b) => a.tile.groupIndex - b.tile.groupIndex);
     }
 
-    step() {
+    step(isError = false) {
+        this.isError = isError;
         if (this.tutorialStepIndex >= this.tutorialSteps.length) return;
         let nextStep = this.tutorialSteps[this.tutorialStepIndex];
         if (nextStep.isReady()) {

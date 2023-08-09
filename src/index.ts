@@ -20,11 +20,16 @@ window.onload = function() {
     // Bug in the library - gives back a string, rather than a string[].
     let seed = generate({minLength: 4, maxLength: 8}) as unknown as string;
     let params = new URLSearchParams(window.location.search);
+    let isTutorial = params.has('tutorial');
     if (params.has('seed')) {
         let paramSeed = params.get('seed');
         if (paramSeed.length > 0) {
             seed = paramSeed;
         }
+    } else if (isTutorial) {
+        // Can change - just make sure it works well with
+        // current level generator.
+        seed = 'pick';
     }
 
 
@@ -33,7 +38,7 @@ window.onload = function() {
         window.localStorage.setItem(seed, JSON.stringify(data));
     }
     let savedJSON = window.localStorage.getItem(seed);
-    if (savedJSON != null && !params.has('reset')) {
+    if (savedJSON != null && !(params.has('reset') || isTutorial)) {
         try {
             let data = JSON.parse(savedJSON);
             game.deserialize(data);
@@ -44,7 +49,7 @@ window.onload = function() {
         game.createNewLevel();
     }
 
-    let renderer = new GameRenderer(app, game);
+    let renderer = new GameRenderer(app, game, isTutorial);
     renderer.start();
 
     window.history.replaceState(null, null, `?seed=${seed}`);

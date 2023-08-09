@@ -10,8 +10,10 @@ import { TutorialRenderer } from './TutorialRenderer';
 
 export class GameRenderer {
 
-    app: PIXI.Application<HTMLCanvasElement>;
-    game: Roots;
+    readonly app: PIXI.Application<HTMLCanvasElement>;
+    readonly game: Roots;
+    readonly isTutorial: boolean;
+
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
     tutorialRenderer: TutorialRenderer;
@@ -27,12 +29,14 @@ export class GameRenderer {
     activatedTiles = new Set<Tile>();
 
     invertAxes: boolean = false;
+    autoSelectGroup: boolean = true;
 
 
-    constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots) {
+    constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
         this.app = app;
         this.invertAxes = app.view.width < app.view.height;
         this.game = game;
+        this.isTutorial = isTutorial;
         this.hexContainer = new PIXI.Container();
         this.mainContainer = new PIXI.Container();
 
@@ -79,6 +83,9 @@ export class GameRenderer {
 
     activateTile(tile: Tile, silently: boolean = false) {
         if (this.nFreeStones <= 0) {
+            if (this.tutorialRenderer) {
+                this.tutorialRenderer.step(true);
+            }
             return false;
         }
         this.activatedTiles.add(tile);
@@ -192,8 +199,10 @@ export class GameRenderer {
         this.mainContainer.addChild(sprite);
         this.updateStones();
 
-        // this.tutorialRenderer = new TutorialRenderer(this);
-        // this.tutorialRenderer.step();
+        if (this.isTutorial) {
+            this.tutorialRenderer = new TutorialRenderer(this);
+            this.tutorialRenderer.step();
+        }
     }
 
     update(delta: number) {
