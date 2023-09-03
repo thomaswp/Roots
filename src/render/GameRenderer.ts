@@ -128,7 +128,9 @@ export class GameRenderer {
     refresh() {
         this.updateStones();
         this.gridRenderer.refresh();
-        this.tutorialRenderer.step();
+        if (this.tutorialRenderer) {
+            this.tutorialRenderer.step();
+        }
     }
 
     updateStones() {

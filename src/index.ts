@@ -45,6 +45,7 @@ window.onload = function() {
     let startGame = () => {
         let renderer = new GameRenderer(app, game, isTutorial);
         renderer.start();
+        net.renderer = renderer;
     
         app.ticker.add((delta) => {
             renderer.update(delta / 60);
@@ -76,9 +77,9 @@ window.onload = function() {
     // window.history.replaceState(null, null, `?seed=${seed}`);
 
 
-    game.onNeedSave = (data: GameData) => {
+    game.onNeedSave.addHandler((data: GameData) => {
         window.localStorage.setItem(seed, JSON.stringify(data));
-    }
+    });
 
     if (!isJoining) {
         let savedJSON = window.localStorage.getItem(seed);
