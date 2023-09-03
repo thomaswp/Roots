@@ -22,6 +22,12 @@ window.onload = function() {
         // return false;
     }
 
+    const setUrlParam = (key: string, value: string) => {
+        let params = new URLSearchParams(window.location.search);
+        params.set(key, value);
+        window.history.replaceState(null, null, `?${params.toString()}`);
+    };
+
     // TODO: Resize app on resize events and update things...
 
     // Bug in the library - gives back a string, rather than a string[].
@@ -38,14 +44,36 @@ window.onload = function() {
         // current level generator.
         seed = 'pick';
     }
+    setUrlParam('seed', seed);
 
 
-    let game = new Roots(seed);
-    let net = new Network(game);
-    let startGame = () => {
+    const game = new Roots(seed);
+    const net = new Network(game);
+
+    const shareJoinURL = (joinID: string) => {
+        let url = location.protocol + '//' + location.host + location.pathname;
+        let params = new URLSearchParams(window.location.search);
+        params.set('joinID', joinID);
+        params.delete('hostID');
+        let joinURL = url + '?' + params.toString();
+        navigator.clipboard.writeText(joinURL);
+        alert('Attempted to copy join link to clipboard:\n' + joinURL);
+    }
+
+    const startGame = () => {
         let renderer = new GameRenderer(app, game, isTutorial);
         renderer.start();
         net.renderer = renderer;
+
+        renderer.onShare.addHandler(() => {
+            if (net.isHost) {
+                shareJoinURL(net.ID);
+                return;
+            }
+            net.host(params.get('hostID')).then((id) => {
+                shareJoinURL(id);
+            });
+        });
     
         app.ticker.add((delta) => {
             renderer.update(delta / 60);
@@ -54,28 +82,25 @@ window.onload = function() {
 
     let isJoining = false;
     if (!isTutorial) {
-        if (params.has('join')) {
-            let joinGuid = params.get('join');
+        if (params.has('joinID')) {
+            let joinGuid = params.get('joinID');
             if (uuidValidate(joinGuid)) {
                 net.connect(joinGuid);
                 isJoining = true;
 
                 net.onGameReceived = () => {
+                    setUrlParam('seed', game.seed);
                     startGame();
                 }
             } else {
                 alert("Invalid join code: " + joinGuid);
             }
-        } else {
-            // TODO: Only host on request
-            net.host().then((id) => {
-                // window.history.replaceState(null, null, `?seed=${seed}&join=${id}`);
+        } else if (params.has('hostID')) {
+            net.host(params.get('hostID')).then((id) => {
+                
             });
         }
     }
-    // TODO: Figure out URLS
-    // window.history.replaceState(null, null, `?seed=${seed}`);
-
 
     game.onNeedSave.addHandler((data: GameData) => {
         window.localStorage.setItem(seed, JSON.stringify(data));

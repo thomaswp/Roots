@@ -25,7 +25,7 @@ export class Network {
         this.game = game;
     }
 
-    private async createPeer(id = null) : Promise<string> {
+    private async createPeer(id?: string) : Promise<string> {
         this.peer = new Peer(id, {
             debug: 2,
         });
@@ -36,16 +36,22 @@ export class Network {
                 resolve(id);
             });
     
+            
+            let alertShown = false;
             this.peer.on('error', (err) => {
                 console.error('peer error', err);
+                if (!alertShown) {
+                    alertShown = true;
+                    alert('Could not connect to peer. Make sure they are hosting and try again.');
+                }
                 reject(err);
             });
         });
     }
 
-    async host() : Promise<string> {
+    async host(id?: string) : Promise<string> {
         this._isHost = true;
-        let promise = this.createPeer('79ae4d13-ec49-4d35-8cd1-8888ddad5bca'); // Hard code temporarily
+        let promise = this.createPeer(id); // Hard code temporarily
         this.peer.on('connection', (connection) => {
             this.handleConnection(connection);
             connection.on('open', () => {
@@ -108,9 +114,6 @@ export class Network {
         conn.on('close', () => {
             console.log('connection closed');
             this.hostConnections = this.hostConnections.filter(c => c != conn);
-        });
-        conn.on('error', (err) => {
-            console.error('connection error', err);
         });
 
         this.game.onTilesActivated.addHandler((tiles) => {

@@ -7,6 +7,8 @@ import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
 import { Multitouch } from './Multitouch';
 import { TutorialRenderer } from './TutorialRenderer';
+import { SpriteH } from 'pixi-heaven';
+import { Event } from '../util/Event';
 
 export class GameRenderer {
 
@@ -23,6 +25,7 @@ export class GameRenderer {
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
+    shareIcon: SpriteH;
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
 
@@ -30,6 +33,8 @@ export class GameRenderer {
 
     invertAxes: boolean = false;
     autoSelectGroup: boolean = true;
+
+    readonly onShare = new Event<void>();
 
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
@@ -205,6 +210,27 @@ export class GameRenderer {
             this.tutorialRenderer = new TutorialRenderer(this);
             this.tutorialRenderer.step();
         }
+
+        this.shareIcon = new SpriteH(PIXI.Texture.from('img/share.png'));
+        this.mainContainer.addChild(this.shareIcon);
+        // Position in bottom-right corner
+
+        this.shareIcon.color.setDark(1, 1, 1);
+        this.shareIcon.anchor.set(1, 1);
+        this.shareIcon.x = this.app.screen.width - 10;
+        this.shareIcon.y = this.app.screen.height - 10;
+        this.shareIcon.width = 25;
+        this.shareIcon.height = 25;
+        this.shareIcon.interactive = true;
+        this.shareIcon.on('click', () => {
+            this.onShare.emit();
+        });
+        this.shareIcon.on('mouseover', () => {
+            this.shareIcon.color.setDark(1, 0.5, 1);
+        });
+        this.shareIcon.on('mouseout', () => {
+            this.shareIcon.color.setDark(1, 1, 1);
+        });
     }
 
     update(delta: number) {

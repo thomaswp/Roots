@@ -47,7 +47,7 @@ export class GridRenderer {
     }
 
     updateHover(index: number, hover: boolean) {
-        if (index === undefined) return;
+        if (index == undefined) return;
         let oldIndex = this.hoverGroupIndex;
         this.hoverGroupIndex = hover ? index : -1;
         this.hexes
