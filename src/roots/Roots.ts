@@ -2,8 +2,10 @@ import { defineHex, Direction, Grid, rectangle } from "honeycomb-grid";
 import { Tile, TileData } from "./Tile";
 import { Clustering } from "./Clustering";
 import { LevelGenerator } from "./LevelGenerator";
+import { v4 as uuidv4 } from 'uuid';
 
 export type GameData = {
+    guid: string;
     seed: string;
     width: number;
     height: number;
@@ -16,6 +18,7 @@ export type GameData = {
 export class Roots {
 
     // serializable fields
+    guid: string;
     width = 20;
     height = 15;
     seed: string;
@@ -38,6 +41,7 @@ export class Roots {
 
     constructor(seed: string) {
         this.seed = seed;
+        this.guid = uuidv4();
     }
 
     createNewLevel() {
@@ -74,6 +78,7 @@ export class Roots {
 
     serialize() : GameData {
         return {
+            guid: this.guid,
             seed: this.seed,
             width: this.width,
             height: this.height,
@@ -86,6 +91,7 @@ export class Roots {
 
     deserialize(data: GameData) {
         console.log('loading...', data);
+        this.guid = data.guid;
         this.seed = data.seed;
         this.nStones = data.nStones;
         this.nStonePieces = data.nStonePieces || 0;

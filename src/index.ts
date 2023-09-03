@@ -2,7 +2,9 @@ import * as PIXI from "pixi.js";
 import { GameData, Roots } from "./roots/Roots";
 import { GameRenderer as GameRenderer } from "./render/GameRenderer";
 import { generate } from "random-words";
+import { validate as uuidValidate } from 'uuid';
 import 'hammerjs';
+import { Network } from "./roots/Network";
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
@@ -14,6 +16,11 @@ window.onload = function() {
         autoDensity: true,
     });
     document.body.appendChild(app.view);
+
+    document.oncontextmenu = document.body.oncontextmenu = function(e) {
+        e.preventDefault();
+        // return false;
+    }
 
     // TODO: Resize app on resize events and update things...
 
@@ -34,32 +41,58 @@ window.onload = function() {
 
 
     let game = new Roots(seed);
+    let net = new Network(game);
+    let startGame = () => {
+        let renderer = new GameRenderer(app, game, isTutorial);
+        renderer.start();
+    
+        app.ticker.add((delta) => {
+            renderer.update(delta / 60);
+        });
+    }
+
+    let isJoining = false;
+    if (!isTutorial) {
+        if (params.has('join')) {
+            let joinGuid = params.get('join');
+            if (uuidValidate(joinGuid)) {
+                net.connect(joinGuid);
+                isJoining = true;
+
+                net.onGameReceived = () => {
+                    startGame();
+                }
+            } else {
+                alert("Invalid join code: " + joinGuid);
+            }
+        } else {
+            // TODO: Only host on request
+            net.host().then((id) => {
+                // window.history.replaceState(null, null, `?seed=${seed}&join=${id}`);
+            });
+        }
+    }
+    // TODO: Figure out URLS
+    // window.history.replaceState(null, null, `?seed=${seed}`);
+
+
     game.onNeedSave = (data: GameData) => {
         window.localStorage.setItem(seed, JSON.stringify(data));
     }
-    let savedJSON = window.localStorage.getItem(seed);
-    if (savedJSON != null && !(params.has('reset') || isTutorial)) {
-        try {
-            let data = JSON.parse(savedJSON);
-            game.deserialize(data);
-        } catch (e) {
-            console.error('filed to load save for seed', e);
+
+    if (!isJoining) {
+        let savedJSON = window.localStorage.getItem(seed);
+        if (savedJSON != null && !(params.has('reset') || isTutorial)) {
+            try {
+                let data = JSON.parse(savedJSON);
+                game.deserialize(data);
+            } catch (e) {
+                console.error('filed to load save for seed', e);
+            }
+        } else {
+            game.createNewLevel();
         }
-    } else {
-        game.createNewLevel();
+
+        startGame();
     }
-
-    let renderer = new GameRenderer(app, game, isTutorial);
-    renderer.start();
-
-    window.history.replaceState(null, null, `?seed=${seed}`);
-
-    document.oncontextmenu = document.body.oncontextmenu = function(e) {
-        e.preventDefault();
-        // return false;
-    }
-
-    app.ticker.add((delta) => {
-        renderer.update(delta / 60);
-    });
 };
