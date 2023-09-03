@@ -5,17 +5,19 @@ export type TileData = {
     unlocked: boolean;
     groupIndex: number;
     isStoneTile: boolean;
+    movesetIndex: number;
 }
 
 export const tileSize = 30;
 
 export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" }) {
-  
+
     // serializable fields
     id: number;
     groupIndex: number;
     isStoneTile: boolean = false;
     unlocked: boolean = false;
+    movesetIndex: number;
 
     grid: Grid<Tile>;
     // active: boolean = false;
@@ -27,6 +29,7 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
             unlocked: this.unlocked,
             groupIndex: this.groupIndex,
             isStoneTile: this.isStoneTile,
+            movesetIndex: this.movesetIndex,
         };
     }
 
@@ -35,8 +38,9 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
         this.unlocked = data.unlocked;
         this.groupIndex = data.groupIndex;
         this.isStoneTile = data.isStoneTile;
+        this.movesetIndex = data.movesetIndex;
     }
-  
+
     // isPassable() {
     //     return this.active || this.unlocked;
     // }

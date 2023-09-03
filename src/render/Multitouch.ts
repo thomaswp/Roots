@@ -3,6 +3,7 @@ import 'hammerjs'
 import e from 'express';
 import { lerp } from '../util/MathUtil';
 import { GameRenderer } from './GameRenderer';
+import { HexRenderer } from './HexRenderer';
 
 export class Multitouch {
 
@@ -126,6 +127,33 @@ export class Multitouch {
             this.renderer.clearActiveTiles();
             this.updatesSinceLastGesture = 0;
         });
+    }
+
+    show(hexes: HexRenderer[], margin: number = 20) {
+        let min = new PIXI.Point(Number.MAX_VALUE, Number.MAX_VALUE);
+        let max = new PIXI.Point(-Number.MAX_VALUE, -Number.MAX_VALUE);
+        for (let hex of hexes) {
+            let x = hex.x - this.width / 2;
+            let y = hex.y - this.height / 2;
+            min.x = Math.min(min.x, x - hex.width / 2);
+            min.y = Math.min(min.y, y - hex.height / 2);
+            max.x = Math.max(max.x, x + hex.width / 2);
+            max.y = Math.max(max.y, y + hex.height / 2);
+        }
+        min.x -= margin;
+        min.y -= margin;
+        max.x += margin;
+        max.y += margin;
+
+        let centerX = (min.x + max.x) / 2;
+        let centerY = (min.y + max.y) / 2;
+        this.targetPan.set(-centerX, -centerY);
+
+        let width = max.x - min.x;
+        let height = max.y - min.y;
+
+        let targetScale = Math.min(this.app.view.width / width, this.app.view.height / height);
+        this.targetScale = Math.min(targetScale, this.maxScale);
     }
 
     update(delta: number) {

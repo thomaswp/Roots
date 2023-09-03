@@ -27,8 +27,8 @@ class GridAdapter implements IGraphAdapter<Tile> {
     }
 
     getWeight(tile: Tile) {
-        return (tile.groupIndex == null || 
-            this.ignoreGroupingTiles.includes(tile)) ? 
+        return (tile.groupIndex == null ||
+            this.ignoreGroupingTiles.includes(tile)) ?
             0.5 : 0;
     }
 }
@@ -39,9 +39,11 @@ class Moveset {
     readonly moves: Tile[][] = [];
     stones: number;
     stonePieces: number = 0;
+    index: number;
 
-    constructor(stones: number) {
+    constructor(stones: number, index: number) {
         this.stones = stones;
+        this.index = index;
     }
 
     get footprintRadius() {
@@ -50,6 +52,7 @@ class Moveset {
 
     addMove(move: Tile[]) {
         this.moves.push(move);
+        move.forEach(tile => tile.movesetIndex = this.index);
         move.forEach(tile => {
             this.tiles.add(tile);
             this.addFootprint(tile, this.footprint, this.footprintRadius);
@@ -65,7 +68,7 @@ class Moveset {
     private addFootprint(tile: Tile, footprint: Set<Tile>, radius: number = 0) {
         const spiralTraverser = spiral({ start: tile, radius }) as Traverser<Tile>;
         tile.grid.traverse(spiralTraverser).forEach(neighbor => {
-            footprint.add(neighbor); 
+            footprint.add(neighbor);
         });
     }
 
@@ -78,7 +81,7 @@ class Moveset {
         this.stonePieces += other.stonePieces;
         other.tiles.forEach(tile => this.tiles.add(tile));
         other.footprint.forEach(tile => this.footprint.add(tile));
-        
+
         // One option: only keep the most recent move, which should be the one that joined them
         // This may cause the generator to stop, when that move isn't easy to build from
         // this.moves.splice(0, this.moves.length - 1);
@@ -131,10 +134,10 @@ export class LevelGenerator {
         let paths = dijkstra(adapter, tile, null, distance);
         return Object.entries(paths.costs).map(([key, value]) => {
             return { id: parseInt(key), cost: value };
-        }).filter(pair => 
+        }).filter(pair =>
             // shouldn't be necessary, since all ungrouped will be at least 1 away
             // pair.cost >= 1 &&
-            pair.id != tile.id && 
+            pair.id != tile.id &&
             this.tileMap.get(pair.id).groupIndex == null
         );
     }
@@ -153,7 +156,7 @@ export class LevelGenerator {
         let stonePieces = 0;
 
         let findTilesMadeCloserWithGroup = (startTile: Tile, group: Tile[]) => {
-            
+
             let possibleMoves = this.findUngroupedTilesWithinDistance(gridAdapter, startTile, stones - 1);
             gridAdapter.ignoreGroupingTiles = group;
             let possibleMovesWithoutGroup = this.findUngroupedTilesWithinDistance(gridAdapter, startTile, stones - 1);
@@ -212,7 +215,7 @@ export class LevelGenerator {
                     // TODO: Need a more robust solution: this can get pretty expensive
                     return null;
                 }
-                
+
                 let toAdd = newlyPossiblePairs[Math.floor(this.random() * newlyPossiblePairs.length)];
                 addPair(toAdd);
             }
@@ -223,18 +226,18 @@ export class LevelGenerator {
             // possible that no group exists that is exactly the target cost, and even if it exists
             // finding it is very computationally expensive
             while (possiblePairs.length > 0 && remainingStones > 0) {
-                let addedIndex = Math.floor(this.random() * possiblePairs.length); 
+                let addedIndex = Math.floor(this.random() * possiblePairs.length);
                 let added = possiblePairs[addedIndex];
                 addPair(added);
             }
             // console.log('costgroup', group)
 
             // let totalCost = group.map(g => g.cost).reduce((a, b) => a + b, 0);
-            
+
             let tileGroup = group
             .map(g => this.tileMap.get(g.id));
             tileGroup.push(tile);
-            
+
             // console.log('grouping', tileGroup.map(tile => tile.id), 'for cost', totalCost, '=>', nextGroupIndex);
 
             tileGroup.forEach(groupTile => {
@@ -269,7 +272,7 @@ export class LevelGenerator {
             let move = createMove(baseTile, null, allFootprints);
             if (move == null) return null;
 
-            let moveset = new Moveset(stones);
+            let moveset = new Moveset(stones, movesets.length);
             moveset.addMove(move);
             return moveset;
         };
@@ -353,7 +356,7 @@ export class LevelGenerator {
                 allowNonMinMovesets = true;
                 attemptsSinceLastProgress = 0;
             }
-            
+
             // Prioritize movesets that are at the minimum number of stone pieces
             let minStonePieces = movesets.reduce((min, moveset) => Math.min(min, moveset.stonePieces), Number.POSITIVE_INFINITY);
             let targetMovesets = movesets;
@@ -370,7 +373,7 @@ export class LevelGenerator {
             //     ms.footprint.forEach(tile => disallowedTiles.add(tile));
             // });
 
-            let createStoneMove = (stones < LevelGenerator.maxStones) && 
+            let createStoneMove = (stones < LevelGenerator.maxStones) &&
                 (this.random() * moveset.tiles.size > (stones - 1) * 5);
 
             let next = selectNextBaseTile(moveset, new Set(), createStoneMove);
@@ -400,7 +403,7 @@ export class LevelGenerator {
                 createNewMovesets();
             }
 
-            
+
             // If this move allows to movesets to interfere with each other,
             // create a move that joins them
             for (let i = 0; i < movesets.length; i++) {

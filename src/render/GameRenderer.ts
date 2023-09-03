@@ -6,31 +6,42 @@ import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
 import { Multitouch } from './Multitouch';
+import { TutorialRenderer } from './TutorialRenderer';
+import { SpriteH } from 'pixi-heaven';
+import { Event } from '../util/Event';
 
 export class GameRenderer {
 
-    app: PIXI.Application<HTMLCanvasElement>;
-    game: Roots;
+    readonly app: PIXI.Application<HTMLCanvasElement>;
+    readonly game: Roots;
+    readonly isTutorial: boolean;
+
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
+    tutorialRenderer: TutorialRenderer;
 
     groupAnimalPaths: string[];
     groupColors: PIXI.Color[];
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
+    shareIcon: SpriteH;
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
 
     activatedTiles = new Set<Tile>();
 
     invertAxes: boolean = false;
+    autoSelectGroup: boolean = true;
+
+    readonly onShare = new Event<void>();
 
 
-    constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots) {
+    constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
         this.app = app;
         this.invertAxes = app.view.width < app.view.height;
         this.game = game;
+        this.isTutorial = isTutorial;
         this.hexContainer = new PIXI.Container();
         this.mainContainer = new PIXI.Container();
 
@@ -77,11 +88,18 @@ export class GameRenderer {
 
     activateTile(tile: Tile, silently: boolean = false) {
         if (this.nFreeStones <= 0) {
+            if (this.tutorialRenderer) {
+                this.tutorialRenderer.step(true);
+            }
             return false;
         }
         this.activatedTiles.add(tile);
         this.updateStones();
         if (!silently) this.sendActiveTiles();
+
+        if (this.tutorialRenderer) {
+            this.tutorialRenderer.step();
+        }
         return true;
     }
 
@@ -115,6 +133,9 @@ export class GameRenderer {
     refresh() {
         this.updateStones();
         this.gridRenderer.refresh();
+        if (this.tutorialRenderer) {
+            this.tutorialRenderer.step();
+        }
     }
 
     updateStones() {
@@ -184,6 +205,32 @@ export class GameRenderer {
         sprite.y = height;
         this.mainContainer.addChild(sprite);
         this.updateStones();
+
+        if (this.isTutorial) {
+            this.tutorialRenderer = new TutorialRenderer(this);
+            this.tutorialRenderer.step();
+        }
+
+        this.shareIcon = new SpriteH(PIXI.Texture.from('img/share.png'));
+        this.mainContainer.addChild(this.shareIcon);
+        // Position in bottom-right corner
+
+        this.shareIcon.color.setDark(1, 1, 1);
+        this.shareIcon.anchor.set(1, 1);
+        this.shareIcon.x = this.app.screen.width - 10;
+        this.shareIcon.y = this.app.screen.height - 10;
+        this.shareIcon.width = 25;
+        this.shareIcon.height = 25;
+        this.shareIcon.interactive = true;
+        this.shareIcon.on('click', () => {
+            this.onShare.emit();
+        });
+        this.shareIcon.on('mouseover', () => {
+            this.shareIcon.color.setDark(1, 0.5, 1);
+        });
+        this.shareIcon.on('mouseout', () => {
+            this.shareIcon.color.setDark(1, 1, 1);
+        });
     }
 
     update(delta: number) {

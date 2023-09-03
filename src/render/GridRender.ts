@@ -11,7 +11,7 @@ export class GridRenderer {
     grid: Grid<Tile>;
 
     container: Container;
-    children: HexRenderer[] = [];
+    hexes: HexRenderer[] = [];
     hoverGroupIndex: number = -1;
 
     width: number;
@@ -35,21 +35,22 @@ export class GridRenderer {
     init() {
         this.grid.forEach(tile => {
             let hexRenderer = new HexRenderer(tile, this);
-            this.children.push(hexRenderer);
+            this.hexes.push(hexRenderer);
             this.container.addChild(hexRenderer);
         });
     }
 
     refresh() {
-        this.children.forEach(hexRenderer => {
+        this.hexes.forEach(hexRenderer => {
             hexRenderer.refresh();
         });
     }
 
     updateHover(index: number, hover: boolean) {
+        if (index == undefined) return;
         let oldIndex = this.hoverGroupIndex;
         this.hoverGroupIndex = hover ? index : -1;
-        this.children
+        this.hexes
         .filter(hexRenderer => {
             return hexRenderer.tile.groupIndex === oldIndex ||
                 hexRenderer.tile.groupIndex === index
@@ -60,7 +61,7 @@ export class GridRenderer {
     }
 
     update(delta: number) {
-        this.children.forEach(hexRenderer => {
+        this.hexes.forEach(hexRenderer => {
             hexRenderer.update(delta);
         });
     }

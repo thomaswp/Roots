@@ -2,8 +2,11 @@ import { defineHex, Direction, Grid, rectangle } from "honeycomb-grid";
 import { Tile, TileData } from "./Tile";
 import { Clustering } from "./Clustering";
 import { LevelGenerator } from "./LevelGenerator";
+import { v4 as uuidv4 } from 'uuid';
+import { Event } from "../util/Event";
 
 export type GameData = {
+    guid: string;
     seed: string;
     width: number;
     height: number;
@@ -16,6 +19,7 @@ export type GameData = {
 export class Roots {
 
     // serializable fields
+    guid: string;
     width = 20;
     height = 15;
     seed: string;
@@ -33,11 +37,13 @@ export class Roots {
     // TODO: Consider just passing this from the renderer
     // activeTiles: Tile[] = [];
 
-    onNeedSave: (data: GameData) => void;
+    readonly onNeedSave = new Event<GameData>();
+    readonly onTilesActivated = new Event<Tile[]>();
 
 
     constructor(seed: string) {
         this.seed = seed;
+        this.guid = uuidv4();
     }
 
     createNewLevel() {
@@ -69,11 +75,12 @@ export class Roots {
     save() {
         let data = this.serialize();
         // console.log('saving...', data);
-        this.onNeedSave(data);
+        this.onNeedSave.emit(data);
     }
 
     serialize() : GameData {
         return {
+            guid: this.guid,
             seed: this.seed,
             width: this.width,
             height: this.height,
@@ -86,6 +93,7 @@ export class Roots {
 
     deserialize(data: GameData) {
         console.log('loading...', data);
+        this.guid = data.guid;
         this.seed = data.seed;
         this.nStones = data.nStones;
         this.nStonePieces = data.nStonePieces || 0;
@@ -131,26 +139,32 @@ export class Roots {
                 return clusterIndex === testClustering.getClusterIndex(tile.id);
             })) continue;
             
-            // First mark all as unlocked
-            group.forEach(tile => {
-                tile.unlocked = true;
-            });
-            // Then add to the permenant clustering
-            group.forEach(tile => {
-                this.clustering.addTileAndConnectNeighbors(tile);
-            });
-            if (group[0].isStoneTile) {
-                this.nStonePieces++;
-                if (this.nStonePieces >= this.nStonePiecesPerStone) {
-                    this.nStonePieces -= this.nStonePiecesPerStone;
-                    this.nStones++;
-                }
-            }
-            this.save();
+            this.activateTiles(group);
             // console.log('unlocked group ' + groupIndex);
+
+            this.onTilesActivated.emit(group);
             return true;
         }
         return false;
+    }
+
+    activateTiles(group: Tile[]) {
+        // First mark all as unlocked
+        group.forEach(tile => {
+            tile.unlocked = true;
+        });
+        // Then add to the permenant clustering
+        group.forEach(tile => {
+            this.clustering.addTileAndConnectNeighbors(tile);
+        });
+        if (group[0].isStoneTile) {
+            this.nStonePieces++;
+            if (this.nStonePieces >= this.nStonePiecesPerStone) {
+                this.nStonePieces -= this.nStonePiecesPerStone;
+                this.nStones++;
+            }
+        }
+        this.save();
     }
 
     // clearActive(restoreActive: boolean) {
