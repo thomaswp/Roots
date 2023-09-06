@@ -1,28 +1,40 @@
 import { Peer, DataConnection, PeerOptions } from "peerjs";
 import { GameData, Roots } from "./Roots";
 import { GameRenderer } from "../render/GameRenderer";
+import { Event } from "../util/Event";
 
 interface Message {
     type: string,
+    playerIndex: number,
     data: Object | string,
 }
 
 export class Network {
 
     readonly game: Roots;
-    renderer: GameRenderer;
-    onGameReceived: () => void;
+    readonly onGameReceived = new Event<void>();
     
-    // TODO: For hosts may be multiple IDs
+    private renderer: GameRenderer;
     private peer: Peer;
-    private _isHost: boolean;
-    private hostConnections: DataConnection[] = [];
+    private connections: DataConnection[] = [];
+    private playerIndex;
 
     get ID() { return this.peer?.id; }
-    get isHost() { return this._isHost; }
+    get isHost() { return this.playerIndex === 0; }
+
 
     constructor(game: Roots) {
         this.game = game;
+
+        this.game.onTilesActivated.addHandler((tiles) => {
+            this.connections.forEach(conn => {
+                conn.send({
+                    type: 'tilesActivated',
+                    playerIndex: this.playerIndex,
+                    data: tiles.map(tile => tile.id),
+                });
+            });
+        });
     }
 
     private async createPeer(id?: string) : Promise<string> {
@@ -49,16 +61,30 @@ export class Network {
         });
     }
 
+    setRenderer(renderer: GameRenderer) {
+        this.renderer = renderer;
+        this.renderer.onHoverChanged.addHandler((index) => {
+            this.connections.forEach(conn => {
+                conn.send({
+                    type: 'hoverChanged',
+                    playerIndex: this.playerIndex,
+                    data: index,
+                });
+            });
+        });
+    }
+
     async host(id?: string) : Promise<string> {
-        this._isHost = true;
+        this.playerIndex = 0;
         let promise = this.createPeer(id); // Hard code temporarily
+        let nextIndex = 1;
         this.peer.on('connection', (connection) => {
             this.handleConnection(connection);
             connection.on('open', () => {
                 console.log('sending game');
-                this.hostConnections.push(connection);
                 connection.send({
                     type: 'sendGame',
+                    playerIndex: nextIndex++,
                     data: this.game.serialize(),
                 })
             });
@@ -67,7 +93,6 @@ export class Network {
     }
 
     connect(peerID: string) {
-        this._isHost = false;
         this.createPeer().then((id) => {
             let connection = this.peer.connect(peerID, {
                 // serialization: 'json',
@@ -78,17 +103,17 @@ export class Network {
 
     private handleConnection(conn: DataConnection) {
         console.log('connection', conn);
-        conn.on('data', (data: Message) => {
-            if (data.type == 'sendGame') {
-                console.log('received game', data);
-                let gameData = data.data as GameData;
+        this.connections.push(conn);
+        conn.on('data', (message: Message) => {
+            if (message.type == 'sendGame') {
+                console.log('received game', message);
+                this.playerIndex = message.playerIndex;
+                let gameData = message.data as GameData;
                 this.game.deserialize(gameData);
-                if (this.onGameReceived) {
-                    this.onGameReceived();
-                }
-            } else if (data.type == 'tilesActivated') {
-                console.log('received tiles', data);
-                let tileIDs = data.data as number[];
+                this.onGameReceived.emit();
+            } else if (message.type == 'tilesActivated') {
+                console.log('received tiles', message);
+                let tileIDs = message.data as number[];
                 let allTiles = this.game.grid.toArray();
                 let tiles = tileIDs.map(id => allTiles.filter(t => t.id == id)[0]);
                 console.log(tiles, this.game.grid);
@@ -96,16 +121,21 @@ export class Network {
                 if (tiles.some(t => !t)) {
                     console.error('received invalid tile IDs', tileIDs);
                 } else {
-                    this.game.activateTiles(tiles);
-                    if (this.isHost) {
-                        // Send the event to all *other* client connections
-                        this.hostConnections.filter(c => c != conn).forEach(c => {
-                            c.send(data);
-                        });
-                    }
+                    this.renderer.deactivateTiles(tiles);
+                    this.game.unlockTiles(tiles);
                 }
+            } else if (message.type == 'hoverChanged') {
+                let index = message.data as number;
+                this.renderer.updatePlayerHover(message.playerIndex, index);
             } else {
-                console.error('unknown message type', data);
+                console.error('unknown message type', message);
+                return;
+            }
+            if (this.isHost) {
+                // Send the event to all *other* client connections
+                this.connections.filter(c => c != conn).forEach(c => {
+                    c.send(message);
+                });
             }
             if (this.renderer) {
                 this.renderer.refresh();
@@ -113,15 +143,7 @@ export class Network {
         });
         conn.on('close', () => {
             console.log('connection closed');
-            this.hostConnections = this.hostConnections.filter(c => c != conn);
-        });
-
-        this.game.onTilesActivated.addHandler((tiles) => {
-            console.log('sending tiles', tiles);
-            conn.send({
-                type: 'tilesActivated',
-                data: tiles.map(tile => tile.id),
-            });
+            this.connections = this.connections.filter(c => c != conn);
         });
     }
 

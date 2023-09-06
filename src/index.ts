@@ -63,7 +63,7 @@ window.onload = function() {
     const startGame = () => {
         let renderer = new GameRenderer(app, game, isTutorial);
         renderer.start();
-        net.renderer = renderer;
+        net.setRenderer(renderer);
 
         renderer.onShare.addHandler(() => {
             if (net.isHost) {
@@ -88,10 +88,10 @@ window.onload = function() {
                 net.connect(joinGuid);
                 isJoining = true;
 
-                net.onGameReceived = () => {
+                net.onGameReceived.addHandler(() => {
                     setUrlParam('seed', game.seed);
                     startGame();
-                }
+                });
             } else {
                 alert("Invalid join code: " + joinGuid);
             }

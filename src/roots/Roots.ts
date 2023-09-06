@@ -139,7 +139,7 @@ export class Roots {
                 return clusterIndex === testClustering.getClusterIndex(tile.id);
             })) continue;
             
-            this.activateTiles(group);
+            this.unlockTiles(group);
             // console.log('unlocked group ' + groupIndex);
 
             this.onTilesActivated.emit(group);
@@ -148,7 +148,7 @@ export class Roots {
         return false;
     }
 
-    activateTiles(group: Tile[]) {
+    unlockTiles(group: Tile[]) {
         // First mark all as unlocked
         group.forEach(tile => {
             tile.unlocked = true;

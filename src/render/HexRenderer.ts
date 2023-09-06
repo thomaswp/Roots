@@ -13,6 +13,7 @@ export class HexRenderer extends Container {
     border: PIXI.Graphics;
     gridRenderer: GridRenderer;
 
+    private hoveringPlayers = new Set<number>();
     private flipValue: number = 0;
     private unlocked = false;
     private targetBorderColor = 0x000000;
@@ -94,14 +95,14 @@ export class HexRenderer extends Container {
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
-            this.gridRenderer.updateHover(tile.groupIndex, true);
+            this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
         graphics.onpointerleave = graphics.onmouseleave =
         graphics.onpointerup = graphics.onmouseup = () => {
             if (this.hidden) return;
             this.hovering = false;
-            this.gridRenderer.updateHover(tile.groupIndex, false);
+            // this.gridRenderer.renderer.onHoverChanged.emit(null);
             this.refresh();
         }
         graphics.onrightclick = (e) => {
@@ -130,8 +131,7 @@ export class HexRenderer extends Container {
                 }
 
                 // Select all if this is the first click and we can (why not...)
-                if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount)
-                {
+                if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount) {
                     selectAll = true;
                 }
             }
@@ -182,6 +182,17 @@ export class HexRenderer extends Container {
 
     showError() {
         this.errorPerc = 1;
+    }
+
+    updatePlayerHover(playerIndex: number, tileID: number) {
+        if (!(this.tile.id === tileID || this.hoveringPlayers.has(playerIndex))) return;
+        if (this.tile.id === tileID) {
+            this.hoveringPlayers.add(playerIndex);
+        } else {
+            this.hoveringPlayers.delete(playerIndex);
+        }
+        this.refresh();
+        // TODO: Remove hover after a while
     }
 
     update(delta: number) {
@@ -271,6 +282,9 @@ export class HexRenderer extends Container {
             zIndex = 2;
         } else if (hovering) {
             lineColor = 0xffffff;
+            zIndex = 1.5;
+        } else if (this.hoveringPlayers.size > 0) {
+            lineColor = this.gridRenderer.renderer.colorForPlayerIndex([...this.hoveringPlayers][0]);
             zIndex = 1.5;
         } else {
             lineColor = new PIXI.Color('00000000');

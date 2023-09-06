@@ -16,12 +16,15 @@ export class GameRenderer {
     readonly game: Roots;
     readonly isTutorial: boolean;
 
+    readonly onHoverChanged = new Event<number>();
+
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
     tutorialRenderer: TutorialRenderer;
 
     groupAnimalPaths: string[];
     groupColors: PIXI.Color[];
+    playerColors: PIXI.Color[];
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
@@ -68,6 +71,9 @@ export class GameRenderer {
         });
         // basicColors.forEach((c, i) => console.log(i, c.toRgbaString()))
         this.groupColors = basicColors;
+        this.playerColors = Array.from(new Array(nBasicColors).keys()).map(i => {
+            return new PIXI.Color({h: ((i + 0.5) * 360 / nBasicColors) % 360, s: 100, v: 100});
+        });
 
         let nGroups = LevelGenerator.maxGroupIndex;
 
@@ -119,8 +125,19 @@ export class GameRenderer {
         this.gridRenderer.refresh();
     }
 
+    updatePlayerHover(playerIndex: number, tileID: number) {
+        this.gridRenderer.hexes.forEach(hex=> {
+            hex.updatePlayerHover(playerIndex, tileID);
+        });
+    }
+
     clearActiveTiles() {
         this.activatedTiles.clear();
+        this.refresh();
+    }
+
+    deactivateTiles(tiles: Tile[]) {
+        tiles.forEach(t => this.activatedTiles.delete(t));
         this.refresh();
     }
 
@@ -149,6 +166,10 @@ export class GameRenderer {
 
     colorForGroupIndex(index: number) : PIXI.Color {
         return this.groupColors[index];
+    }
+
+    colorForPlayerIndex(index: number) : PIXI.Color {
+        return this.playerColors[index % this.playerColors.length];
     }
 
     iconPathForGroupIndex(index: number) : string {
