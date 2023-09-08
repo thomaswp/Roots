@@ -28,6 +28,7 @@ export class Network {
 
         this.game.onTilesActivated.addHandler((tiles) => {
             this.connections.forEach(conn => {
+                if (!conn.open) return;
                 conn.send({
                     type: 'tilesActivated',
                     playerIndex: this.playerIndex,
@@ -65,6 +66,7 @@ export class Network {
         this.renderer = renderer;
         this.renderer.onHoverChanged.addHandler((index) => {
             this.connections.forEach(conn => {
+                if (!conn.open) return;
                 conn.send({
                     type: 'hoverChanged',
                     playerIndex: this.playerIndex,

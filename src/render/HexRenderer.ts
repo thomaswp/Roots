@@ -13,7 +13,7 @@ export class HexRenderer extends Container {
     border: PIXI.Graphics;
     gridRenderer: GridRenderer;
 
-    private hoveringPlayers = new Set<number>();
+    private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
     private unlocked = false;
     private targetBorderColor = 0x000000;
@@ -95,6 +95,7 @@ export class HexRenderer extends Container {
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
+            this.gridRenderer.updateHover(tile.groupIndex, true);
             this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
@@ -102,7 +103,7 @@ export class HexRenderer extends Container {
         graphics.onpointerup = graphics.onmouseup = () => {
             if (this.hidden) return;
             this.hovering = false;
-            // this.gridRenderer.renderer.onHoverChanged.emit(null);
+            this.gridRenderer.updateHover(tile.groupIndex, false);
             this.refresh();
         }
         graphics.onrightclick = (e) => {
@@ -187,7 +188,7 @@ export class HexRenderer extends Container {
     updatePlayerHover(playerIndex: number, tileID: number) {
         if (!(this.tile.id === tileID || this.hoveringPlayers.has(playerIndex))) return;
         if (this.tile.id === tileID) {
-            this.hoveringPlayers.add(playerIndex);
+            this.hoveringPlayers.set(playerIndex, 5 * 60);
         } else {
             this.hoveringPlayers.delete(playerIndex);
         }
@@ -196,6 +197,14 @@ export class HexRenderer extends Container {
     }
 
     update(delta: number) {
+        for (let [playerIndex, time] of this.hoveringPlayers) {
+            this.hoveringPlayers.set(playerIndex, time - delta);
+            if (time <= 0) {
+                this.hoveringPlayers.delete(playerIndex);
+                this.refresh();
+            }
+        }
+
         if (this.flipValue > 0) {
             this.scale.x = Math.abs(Math.cos(this.flipValue * Math.PI));
             this.flipValue = Math.max(0, this.flipValue - delta * 0.07);
@@ -284,7 +293,7 @@ export class HexRenderer extends Container {
             lineColor = 0xffffff;
             zIndex = 1.5;
         } else if (this.hoveringPlayers.size > 0) {
-            lineColor = this.gridRenderer.renderer.colorForPlayerIndex([...this.hoveringPlayers][0]);
+            lineColor = this.gridRenderer.renderer.colorForPlayerIndex([...this.hoveringPlayers.keys()][0]);
             zIndex = 1.5;
         } else {
             lineColor = new PIXI.Color('00000000');
@@ -292,7 +301,7 @@ export class HexRenderer extends Container {
         // Tie breaking for consistency
         zIndex += (tile.q + tile.r * 0.1) * 0.001;
 
-        if (tile.isStoneTile && !tile.unlocked) {
+        if (tile.isStoneTile && !(tile.unlocked || this.hoveringPlayers.size > 0)) {
             lineColor = new PIXI.Color(groupCountColor);
             if (!active) lineColor.multiply(new PIXI.Color(0xbbbbbb)); //new PIXI.Color(0xffd700);
             zIndex += 0.5;
