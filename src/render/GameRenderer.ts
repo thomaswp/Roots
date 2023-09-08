@@ -32,6 +32,8 @@ export class GameRenderer {
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
 
+    tutorialText: PIXI.Text;
+
     activatedTiles = new Set<Tile>();
 
     invertAxes: boolean = false;
@@ -49,7 +51,6 @@ export class GameRenderer {
         this.mainContainer = new PIXI.Container();
 
         app.stage.addChild(this.mainContainer);
-
 
         this.initGroups();
     }
@@ -94,24 +95,22 @@ export class GameRenderer {
 
     activateTile(tile: Tile, silently: boolean = false) {
         if (this.nFreeStones <= 0) {
-            if (this.tutorialRenderer) {
-                this.tutorialRenderer.step(true);
-            }
+            this.stepTutorial(true);
             return false;
         }
         this.activatedTiles.add(tile);
         this.updateStones();
         if (!silently) this.sendActiveTiles();
 
-        if (this.tutorialRenderer) {
-            this.tutorialRenderer.step();
-        }
+        
+        this.stepTutorial();
         return true;
     }
 
     deactivateTile(tile: Tile) {
         this.activatedTiles.delete(tile);
         this.updateStones();
+        this.stepTutorial();
     }
 
     activateGroup(tile: Tile) {
@@ -150,8 +149,12 @@ export class GameRenderer {
     refresh() {
         this.updateStones();
         this.gridRenderer.refresh();
+        this.stepTutorial();
+    }
+
+    stepTutorial(isError = false) {
         if (this.tutorialRenderer) {
-            this.tutorialRenderer.step();
+            this.tutorialRenderer.step(isError);
         }
     }
 
@@ -174,6 +177,15 @@ export class GameRenderer {
 
     iconPathForGroupIndex(index: number) : string {
         return `img/animals/${this.groupAnimalPaths[index]}`;
+    }
+
+    showTutorialText(text: string) {
+        this.tutorialText.text = text;
+        this.tutorialText.visible = true;
+    }
+
+    hideTutorialText() {
+        this.tutorialText.visible = false;
     }
 
     start() {
@@ -229,8 +241,26 @@ export class GameRenderer {
 
         if (this.isTutorial) {
             this.tutorialRenderer = new TutorialRenderer(this);
-            this.tutorialRenderer.step();
         }
+
+        this.tutorialText = new PIXI.Text('', {
+            fontFamily: 'Arial',
+            fontSize: 24,
+            fill: 0xeeeeee,
+            align: 'center',
+        });
+        this.tutorialText.zIndex = 100;
+        this.tutorialText.anchor.set(0.5, 0);
+        this.tutorialText.x = this.app.screen.width / 2;
+        this.tutorialText.y = this.app.screen.height * 0.03;
+        this.tutorialText.style.wordWrap = true;
+        this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.4;
+        this.tutorialText.style.dropShadow = true;
+        this.tutorialText.style.dropShadowColor = 0x000000;
+        this.tutorialText.style.dropShadowDistance = 2;
+        this.mainContainer.addChild(this.tutorialText);
+
+        this.stepTutorial();
 
         this.shareIcon = new SpriteH(PIXI.Texture.from('img/share.png'));
         this.mainContainer.addChild(this.shareIcon);
@@ -252,6 +282,7 @@ export class GameRenderer {
         this.shareIcon.on('mouseout', () => {
             this.shareIcon.color.setDark(1, 1, 1);
         });
+        this.shareIcon.visible = !this.isTutorial;
     }
 
     update(delta: number) {

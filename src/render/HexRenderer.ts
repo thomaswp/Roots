@@ -11,7 +11,10 @@ export class HexRenderer extends Container {
     icon: SpriteH;
     hex: PIXI.Graphics;
     border: PIXI.Graphics;
+    private indicator: PIXI.Graphics;
     gridRenderer: GridRenderer;
+
+    public showingIndicator = false;
 
     private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
@@ -24,6 +27,7 @@ export class HexRenderer extends Container {
     private hovering = false;
     private hoveringTime = 0;
     private errorPerc = 0;
+    private clock = 0;
 
     private hidden = false;
 
@@ -50,6 +54,7 @@ export class HexRenderer extends Container {
 
         this.createHexAndBorder();
         this.createIcon();
+        this.createIndicator();
         this.addInteraction();
 
         this.x = this.renderer.invertAxes ? this.tileCenterY : this.tileCenterX;
@@ -83,6 +88,17 @@ export class HexRenderer extends Container {
         this.addChild(icon);
     }
 
+    createIndicator() {
+        this.indicator = new PIXI.Graphics();
+        this.indicator.lineStyle(2, 0xffffff);
+        console.log(this.tile.width);
+        this.indicator.drawCircle(0, 0, this.tile.width * 0.7);
+        this.indicator.endFill();
+        this.indicator.zIndex = 10;
+        this.indicator.alpha = 0;
+        this.addChild(this.indicator);
+    }
+
     addInteraction() {
         let graphics = this.hex;
         let tile = this.tile;
@@ -107,7 +123,6 @@ export class HexRenderer extends Container {
             this.refresh();
         }
         graphics.onrightclick = (e) => {
-            if (this.hidden) return;
             this.renderer.clearActiveTiles();
         }
         let lastCliked = 0;
@@ -193,10 +208,11 @@ export class HexRenderer extends Container {
             this.hoveringPlayers.delete(playerIndex);
         }
         this.refresh();
-        // TODO: Remove hover after a while
     }
 
     update(delta: number) {
+        this.clock += delta;
+
         for (let [playerIndex, time] of this.hoveringPlayers) {
             this.hoveringPlayers.set(playerIndex, time - delta);
             if (time <= 0) {
@@ -250,6 +266,13 @@ export class HexRenderer extends Container {
         if (!this.hidden && this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
         }
+
+        let indicatorClockCycle = 100;
+        let indicatorClock = (this.clock % indicatorClockCycle) / indicatorClockCycle;
+        let targetIndicatorScale = 1 + indicatorClock * 0.5;
+        let targetIndicatorAlpha = this.showingIndicator ? (1 - indicatorClock * 2) : 0;
+        this.indicator.alpha = lerp(this.indicator.alpha, targetIndicatorAlpha, delta * 0.3, 0.005);
+        this.indicator.scale.x = this.indicator.scale.y = targetIndicatorScale / this.scale.y;
     }
 
     unlock() {
