@@ -1,4 +1,5 @@
 import { Tile } from "../roots/Tile";
+import { removeUrlParam, setUrlParam } from "../util/NavUtils";
 import { GameRenderer } from "./GameRenderer";
 import { HexRenderer } from "./HexRenderer";
 
@@ -112,9 +113,10 @@ export class TutorialRenderer {
             isReady: () => this.isError,
             activate: () => {
                 this.clearIndicators();
+                // TODO: Hilight stones somehow
             },
             text: 'Oops, you can only *activate* two tiles at a time. ' +
-                'You can see how many tiles you have left to activate in the corner of the screen. ' + 
+                'You can see how many tiles you have left to activate in the bottom-left corner of the screen. ' + 
                 'Now, *deactivate* all tiles by {right clicking} anywhere on screen.',
         },
         {
@@ -178,20 +180,96 @@ export class TutorialRenderer {
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
             activate: () => {
                 this.findNextMoveset();
+                this.currentMoveset = this.currentMoveset.filter(h => !h.tile.unlocked);
                 let nextGroup = this.currentMoveset.filter(h => !h.tile.unlocked)[0].tile.groupIndex;
-                console.log(this.currentMoveset, nextGroup);
                 let nextMove = this.currentMoveset.filter(t => t.tile.groupIndex == nextGroup);
-                let neighborTiles = nextMove.flatMap(h => h.tile.getNeighbors());
-                let showing = this.hexes.filter(h => neighborTiles.includes(h.tile));
-                this.updateShowing([...nextMove, ...showing]);
+                let neighborTiles = nextMove.map(h => h.tile.getNeighbors());
+                let intersect = neighborTiles[0].filter(t => neighborTiles[1].includes(t));
+                let intersectingHexes = this.hexes.filter(h => intersect.includes(h.tile));
+                intersectingHexes[1].showingIndicator = true;
+                this.updateShowing([...nextMove, ...intersectingHexes]);
             },
             text: 'Now you can *activate* three tiles at a time! ' +
                 'You can even activate blank (black) tiles if needed.' +
                 'Now, *unlock* another pair of tiles.',
         },
-        // TODO: Show all 2s and 3s: Talk about colors
-        // TODO: Show 4, 5, and 6s discussing each
-        // TODO: Tutorial finish
+        {
+            name: 'up to tripple',
+            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 2,
+            activate: () => {
+                this.clearIndicators();
+                let firstTripleIndex = this.currentMoveset.findIndex(t => t.tile.groupCount == 3);
+                let pairs = this.currentMoveset.slice(0, firstTripleIndex);
+                let toShow = pairs.flatMap(t => t.tile.getNeighbors());
+                this.updateShowing(toShow.map(t => this.getHexForTile(t)).concat(pairs));
+            },
+            text: 'Great! Now, keep unlocking red tiles. ' + 
+                'Ignore the other colors for now, unless you need to *activate* one to connect a pair.',
+        },
+        {
+            name: 'tripple',
+            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 8,
+            activate: () => {
+                let firstTripleIndex = this.currentMoveset.findIndex(t => t.tile.groupCount == 3);
+                let toShow = this.currentMoveset.slice(firstTripleIndex, firstTripleIndex + 3);
+                toShow.forEach(t => t.showingIndicator = true);
+                this.updateShowing(toShow);
+            },
+            text: 'Some tiles are in groups of three, colored yellow. ' +
+                'All three need to be selected and connected to unlock. ' +
+                'Now, *unlock* this triple!',
+        },
+        {
+            name: 'tripples',
+            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 11,
+            activate: () => {
+                this.clearIndicators();
+                this.currentMoveset.filter(t => t.tile.isStoneTile).forEach(t => t.showingIndicator = true);
+                let triples = this.hexes.filter(t => t.tile.groupCount <= 3 && !t.tile.isStoneTile);
+                this.updateShowing([...this.currentMoveset, ...triples]);
+            },
+            text: 'The full map has many more pairs and triples. ' +
+                'Try to unlock another group of *stone tiles*.'
+        },
+        {
+            name: 'quads',
+            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 13,
+            activate: () => {
+                let quads = this.hexes.filter(t => t.tile.groupCount == 4 && !t.tile.isStoneTile);
+                this.updateShowing(quads);
+            },
+            text: 'Groups with four tiles are colored green. ' +
+                'You\'ll need to unlock 3 more groups of stone tiles to unlock them.'
+        },
+        {
+            name: '5s and 6s',
+            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 13,
+            activate: () => {
+                let rest = this.hexes.filter(t => !t.tile.isStoneTile);
+                this.updateShowing(rest);
+            },
+            text: 'Groups with five tiles are colored blue, and those with. ' +
+                'six are colored purple. Now finish unlocking the stone tiles!'
+        },
+        {
+            name: 'finish',
+            isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
+            activate: () => {
+                this.clearIndicators();
+                this.updateShowing(this.hexes);
+                removeUrlParam('tutorial');
+            },
+            text: 'Now you can see the whole board. This is the last step of the tutorial. ' +
+                'Unlock two more groups of stone tiles, and then keep working until you have unlocked all the tiles!'
+        },
+        {
+            name: 'finish',
+            isReady: () => this.renderer.game.nStones == 4,
+            activate: () => {
+                
+            },
+            text: ''
+        },
     ];
 
     constructor(renderer: GameRenderer) {
@@ -221,7 +299,7 @@ export class TutorialRenderer {
         if (nextStep.isReady()) {
             nextStep.activate();
             this.renderer.showTutorialText(nextStep.text);
-            console.log('starting tutorial step:', nextStep.name);
+            console.log('starting tutorial step:', nextStep.name, nextStep, this);
             this.tutorialStepIndex++;
         }
     }
@@ -238,6 +316,10 @@ export class TutorialRenderer {
         this.hexes.forEach(t => {
             t.showingIndicator = false;
         });
+    }
+
+    getHexForTile(tile: Tile) {
+        return this.hexes.filter(t => t.tile == tile)[0];
     }
 
     getIconHexes() {

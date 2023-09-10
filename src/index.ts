@@ -5,6 +5,7 @@ import { generate } from "random-words";
 import { validate as uuidValidate } from 'uuid';
 import 'hammerjs';
 import { Network } from "./roots/Network";
+import { setUrlParam } from "./util/NavUtils";
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
@@ -21,12 +22,6 @@ window.onload = function() {
         e.preventDefault();
         // return false;
     }
-
-    const setUrlParam = (key: string, value: string) => {
-        let params = new URLSearchParams(window.location.search);
-        params.set(key, value);
-        window.history.replaceState(null, null, `?${params.toString()}`);
-    };
 
     // TODO: Resize app on resize events and update things...
 
