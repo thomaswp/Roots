@@ -10,7 +10,7 @@ interface TutorialStep {
     activate: () => void;
 }
 
-export class TutorialRenderer {
+export class TutorialController {
 
     renderer: GameRenderer;
 

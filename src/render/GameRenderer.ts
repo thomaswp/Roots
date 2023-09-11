@@ -6,9 +6,11 @@ import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
 import { Multitouch } from './Multitouch';
-import { TutorialRenderer } from './TutorialRenderer';
+import { TutorialController } from './TutorialRenderer';
 import { SpriteH } from 'pixi-heaven';
 import { Event } from '../util/Event';
+import { Action, Updater } from '../util/Updater';
+import { lerp } from '../util/MathUtil';
 
 export class GameRenderer {
 
@@ -20,7 +22,7 @@ export class GameRenderer {
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
-    tutorialRenderer: TutorialRenderer;
+    tutorialRenderer: TutorialController;
 
     groupAnimalPaths: string[];
     groupColors: PIXI.Color[];
@@ -40,6 +42,8 @@ export class GameRenderer {
     autoSelectGroup: boolean = true;
 
     readonly onShare = new Event<void>();
+
+    private readonly updater: Updater = new Updater();
 
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
@@ -180,8 +184,19 @@ export class GameRenderer {
     }
 
     showTutorialText(text: string) {
-        this.tutorialText.text = text;
         this.tutorialText.visible = true;
+        this.tutorialText.alpha = 0;
+        let p = 0.03;
+        this.updater.run(() => {
+            this.tutorialText.alpha = lerp(this.tutorialText.alpha, 0, p, 0.01);
+            console.log(this.tutorialText.alpha);
+            return this.tutorialText.alpha > 0;
+        }).then(() => {
+            this.tutorialText.text = text;
+        }).then(() => {
+            this.tutorialText.alpha = lerp(this.tutorialText.alpha, 1, p, 0.01);
+            return this.tutorialText.alpha < 1;
+        }).unique('tutorialText', true);
     }
 
     hideTutorialText() {
@@ -240,7 +255,7 @@ export class GameRenderer {
         this.updateStones();
 
         if (this.isTutorial) {
-            this.tutorialRenderer = new TutorialRenderer(this);
+            this.tutorialRenderer = new TutorialController(this);
         }
 
         this.tutorialText = new PIXI.Text('', {
@@ -288,5 +303,6 @@ export class GameRenderer {
     update(delta: number) {
         this.gridRenderer.update(delta);
         this.multitouch.update(delta);
+        this.updater.update();
     }
 }
