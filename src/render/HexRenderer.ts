@@ -97,7 +97,7 @@ export class HexRenderer extends Container {
         graphics.interactive = true;
 
         let isGesturing = () => this.renderer.multitouch.isGesturing;
-        graphics.onpointerenter = graphics.onmouseenter = () => {
+        const onDown = (e) => {
             // if (isGesturing()) return;
             if (this.renderer.multitouch.isPinching) return;
             if (this.tile.unlocked) return;
@@ -107,6 +107,7 @@ export class HexRenderer extends Container {
             this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
+        graphics.onpointerenter = graphics.onmouseenter = onDown;
         graphics.onpointerleave = graphics.onmouseleave =
         graphics.onpointerup = graphics.onmouseup = () => {
             this.hovering = false;
@@ -117,7 +118,7 @@ export class HexRenderer extends Container {
             this.renderer.clearActiveTiles();
         }
         let lastCliked = 0;
-        graphics.ontap = graphics.onclick = (e) => {
+        const onClick = (e) => {
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
@@ -156,6 +157,12 @@ export class HexRenderer extends Container {
                 this.renderer.deactivateTile(tile);
             }
             this.refresh();
+        }
+        graphics.onclick = onClick;
+        graphics.ontap = (e) => {
+            onClick(e);
+            // When tapping, if gesturing, we may still want to "hover"
+            if (isGesturing()) onDown(e);
         }
     }
 
