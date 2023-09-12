@@ -153,9 +153,11 @@ export class TutorialController {
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 2,
             activate: () => {
                 this.updateShowing(this.currentMoveset.slice(0, this.currentMoveset.length));
+                this.renderer.stonePiecesIndicator.showing = true;
             },
-            text: 'Gray *stone tiles* are special. If you *unlock* three pairs of them, '
-                + 'you can *activate* one extra tile at a time.',
+            text: 'Gray *stone tiles* are special. If you *unlock* three pairs of them, ' +
+                'you can *activate* one extra tile at a time. ' + 
+                'You can see your progress in the bottom-left corner of the screen.',
         },
         {
             name: 'second moveset',
@@ -164,18 +166,19 @@ export class TutorialController {
                 this.findNextMoveset();
                 this.updateShowing(this.currentMoveset);
             },
-            text: 'Try completing the next section of the board.',
+            text: 'Try completing the next section of the board. ' +
+                'If needed, you can move around by {clicking and dragging} ' +
+                'and you can zoom in/out by {scrolling}.',
         },
         {
             name: 'third moveset',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
             activate: () => {
                 this.findNextMoveset();
-                this.updateShowing(this.currentMoveset);
-                this.renderer.stonePiecesIndicator.showing = true;
+                this.updateShowing(this.currentMoveset, true);
             },
             text: '*Unlock* all three *stone tile* pairs to proceed. ' + 
-                'You can see your progress in the bottom-left corner of the screen.',
+                'Tip: you can {hover} over a tile to see its matching tiles.',
         },
         {
             name: 'extra stone',
@@ -190,7 +193,7 @@ export class TutorialController {
                 let intersect = neighborTiles[0].filter(t => neighborTiles[1].includes(t));
                 let intersectingHexes = this.hexes.filter(h => intersect.includes(h.tile));
                 intersectingHexes[1].showingIndicator = true;
-                this.updateShowing([...nextMove, ...intersectingHexes]);
+                this.updateShowing([...nextMove, ...intersectingHexes], true);
             },
             text: 'Now you can *activate* three tiles at a time! ' +
                 'You can even activate blank (black) tiles if needed. ' +
@@ -205,7 +208,7 @@ export class TutorialController {
                 let pairs = this.currentMoveset.slice(0, firstTripleIndex);
                 // let toShow = pairs.flatMap(t => t.tile.getNeighbors());
                 // this.updateShowing(toShow.map(t => this.getHexForTile(t)).concat(pairs));
-                this.updateShowing(pairs);
+                this.updateShowing(pairs, true);
             },
             text: 'Great! Now, keep unlocking red tiles.', 
                 // 'Ignore the other colors for now, unless you need to *activate* one to connect a pair.',
@@ -217,7 +220,7 @@ export class TutorialController {
                 let firstTripleIndex = this.currentMoveset.findIndex(t => t.tile.groupCount == 3);
                 let toShow = this.currentMoveset.slice(firstTripleIndex, firstTripleIndex + 3);
                 toShow.forEach(t => t.showingIndicator = true);
-                this.updateShowing(toShow);
+                this.updateShowing(toShow.concat(this.getCurrentMovesetShowing()), true);
                 this.lastUnlockedCount = this.getUnlockedCount();
             },
             text: 'Some tiles are in groups of three, colored yellow. ' +
@@ -308,6 +311,10 @@ export class TutorialController {
         this.init();
     }
 
+    getCurrentMovesetShowing() {
+        return this.currentMoveset.filter(t => this.showing.has(t));
+    }
+
     getUnlockedCount() {
         return this.tiles.filter(t => t.unlocked).length;
     }
@@ -342,12 +349,18 @@ export class TutorialController {
 
     formatText(text: string) : string {
         let replaceMap = {
-            '{click}': this.isTouchDevice() ? 'tap' : 'click',
-            '{clicking}': this.isTouchDevice() ? 'tapping' : 'clicking',
-            '{right clicking}': this.isTouchDevice() ? 'tapping with two fingers' : 'right clicking',
+            '{click}': 'tap',
+            '{clicking}': 'tapping',
+            '{right clicking}': 'tapping with two fingers',
+            '{clicking and dragging}': 'pressing and dragging with one finger',
+            '{scrolling}': 'pinching with two fingers',
+            '{hover}': 'long press',
         };
         Object.keys(replaceMap).forEach(key => {
-            text = text.replace(key, replaceMap[key]);
+            let touchValue = replaceMap[key];
+            let mouseValue = key.replace('{', '').replace('}', '');
+            let value = this.isTouchDevice() ? touchValue : mouseValue;
+            text = text.replace(key, value);
         });
         // TODO: Replace any text surrounded by asterisks with bold text (ideally)
         // Currently, this just removes the asterisks, as it's not supported
@@ -359,12 +372,14 @@ export class TutorialController {
         return ('ontouchstart' in window);
     }
 
-    updateShowing(addedTiles: HexRenderer[]) {
+    updateShowing(addedTiles: HexRenderer[], focusOnlyTheseOnMobile = false) {
         addedTiles.forEach(t => this.showing.add(t));
         this.hexes.forEach(t => {
             t.setHidden(!this.showing.has(t));
         });
-        this.multitouch.show([...this.showing.keys()]);
+        let focusOnly = focusOnlyTheseOnMobile && this.isTouchDevice();
+        let cameraFocus = focusOnly ? addedTiles : [...this.showing];
+        this.multitouch.show(cameraFocus);
     }
 
     clearIndicators() {

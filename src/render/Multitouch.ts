@@ -31,7 +31,11 @@ export class Multitouch {
 
     private updatesSinceLastGesture = 0;
     public get isGesturing() : boolean {
-        return this.pinchStartScale !== undefined || this.panStart !== undefined || this.updatesSinceLastGesture < 5;
+        return this.isPinching || this.panStart !== undefined || this.updatesSinceLastGesture < 5;
+    }
+
+    public get isPinching() : boolean {
+        return this.pinchStartScale !== undefined;
     }
 
     public get scale() : number {
@@ -89,6 +93,13 @@ export class Multitouch {
         this.hammer.on('pinchend', (e) => {
             this.pinchStartScale = undefined;
             this.updatesSinceLastGesture = 0;
+        });
+        window.addEventListener('wheel', (e) => {
+            let delta = e.deltaY;
+            let targetScale = this.scale - delta * 0.004;
+            if (targetScale < this.minScale) targetScale = this.minScale;
+            if (targetScale > this.maxScale) targetScale = this.maxScale;
+            this.targetScale = targetScale;
         });
 
         this.hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 10, pointers: 1 })
