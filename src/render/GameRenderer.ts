@@ -66,7 +66,12 @@ export class GameRenderer {
 
         window.addEventListener('resize', () => {
             setTimeout(() => {
-                this.multitouch.resetTransform();
+                if (this.isTutorial) {
+                    this.multitouch.resetTransform();
+                    this.tutorialRenderer.updateShowing([]);
+                } else {
+                    this.multitouch.resetTransform();
+                }
             });
         });
     }
