@@ -66,7 +66,7 @@ export class GridRenderer {
     }
 
     updateHover(index: number, hover: boolean) {
-        if (index == undefined) return;
+        if (index == undefined || index == -1) return;
         let oldIndex = this.hoverGroupIndex;
         this.hoverGroupIndex = hover ? index : -1;
         this.hexes
@@ -75,6 +75,19 @@ export class GridRenderer {
                 hexRenderer.tile.groupIndex === index
         })
         .forEach(hexRenderer => {
+            hexRenderer.refresh();
+        });
+    }
+
+    clearHover() {
+        this.updateHover(this.hoverGroupIndex, false);
+        this.hexes
+        .filter(hexRenderer => {
+            return hexRenderer.hovering
+        })
+        .forEach(hexRenderer => {
+            // Set false manually blank tiles
+            hexRenderer.hovering = false;
             hexRenderer.refresh();
         });
     }
