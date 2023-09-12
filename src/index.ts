@@ -7,6 +7,7 @@ import 'hammerjs';
 import { Network } from "./roots/Network";
 import { setUrlParam } from "./util/NavUtils";
 import tutorialLevel from "./TutorialLevel.json";
+import { LoadingRenderer } from "./render/LoadingRenderer";
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
@@ -114,10 +115,19 @@ window.onload = function() {
             } catch (e) {
                 console.error('filed to load save for seed', e);
             }
+            startGame();
         } else {
-            game.createNewLevel();
+            let loading = new LoadingRenderer(app);
+            app.stage.addChild(loading);
+            let update = (delta) => {
+                loading.update(game.loadProgress);
+            };
+            app.ticker.add(update);
+            game.createNewLevel().then(() => {
+                app.stage.removeChild(loading);
+                app.ticker.remove(update);
+                startGame();
+            });
         }
-
-        startGame();
     }
 };

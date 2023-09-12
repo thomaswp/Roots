@@ -37,6 +37,8 @@ export class Roots {
     // TODO: Consider just passing this from the renderer
     // activeTiles: Tile[] = [];
 
+    loadProgress = 0;
+
     readonly onNeedSave = new Event<GameData>();
     readonly onTilesActivated = new Event<Tile[]>();
 
@@ -46,12 +48,23 @@ export class Roots {
         this.guid = uuidv4();
     }
 
-    createNewLevel() {
+    createNewLevel() : Promise<void> {
         let generator = new LevelGenerator(this.seed, this.width, this.height);
-        this.grid = generator.generate();
-        this.nStonePiecesPerStone = generator.stonePiecesPerStone;
-        this.initializeGrid();
-        this.save();
+        generator.startGeneration();
+        return new Promise(resolve => {
+            let callback = setInterval(() => {
+                this.loadProgress = generator.progress;
+                if (generator.step()) {
+                    this.grid = generator.grid;
+                    this.nStonePiecesPerStone = generator.stonePiecesPerStone;
+                    this.initializeGrid();
+                    this.save();
+                    this.loadProgress = 1;
+                    resolve();
+                    clearInterval(callback);
+                }
+            }, 1);
+        });
     }
 
     private initializeGrid() {
