@@ -6,6 +6,7 @@ import { validate as uuidValidate } from 'uuid';
 import 'hammerjs';
 import { Network } from "./roots/Network";
 import { setUrlParam } from "./util/NavUtils";
+import tutorialLevel from "./TutorialLevel.json";
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
@@ -34,16 +35,21 @@ window.onload = function() {
         if (paramSeed.length > 0) {
             seed = paramSeed;
         }
+        setUrlParam('seed', seed);
     } else if (isTutorial) {
-        // Can change - just make sure it works well with
-        // current level generator.
-        seed = 'pick';
+        seed = tutorialLevel.seed; // "pick"
     }
-    setUrlParam('seed', seed);
-
-
+    
     const game = new Roots(seed);
     const net = new Network(game);
+
+    if (isTutorial) {
+        game.deserialize(tutorialLevel as GameData);
+    }
+
+    game.onNeedSave.addHandler((data: GameData) => {
+        window.localStorage.setItem(seed, JSON.stringify(data));
+    });
 
     const shareJoinURL = (joinID: string) => {
         let url = location.protocol + '//' + location.host + location.pathname;
@@ -75,35 +81,34 @@ window.onload = function() {
         });
     }
 
-    let isJoining = false;
-    if (!isTutorial) {
-        if (params.has('joinID')) {
-            let joinGuid = params.get('joinID');
-            if (uuidValidate(joinGuid)) {
-                net.connect(joinGuid);
-                isJoining = true;
-
-                net.onGameReceived.addHandler(() => {
-                    setUrlParam('seed', game.seed);
-                    startGame();
-                });
-            } else {
-                alert("Invalid join code: " + joinGuid);
-            }
-        } else if (params.has('hostID')) {
-            net.host(params.get('hostID')).then((id) => {
-                
-            });
-        }
+    if (isTutorial) {
+        startGame();
+        return;
     }
 
-    game.onNeedSave.addHandler((data: GameData) => {
-        window.localStorage.setItem(seed, JSON.stringify(data));
-    });
+    let isJoining = false;
+    if (params.has('joinID')) {
+        let joinGuid = params.get('joinID');
+        if (uuidValidate(joinGuid)) {
+            net.connect(joinGuid);
+            isJoining = true;
+
+            net.onGameReceived.addHandler(() => {
+                setUrlParam('seed', game.seed);
+                startGame();
+            });
+        } else {
+            alert("Invalid join code: " + joinGuid);
+        }
+    } else if (params.has('hostID')) {
+        net.host(params.get('hostID')).then((id) => {
+            
+        });
+    }
 
     if (!isJoining) {
         let savedJSON = window.localStorage.getItem(seed);
-        if (savedJSON != null && !(params.has('reset') || isTutorial)) {
+        if (savedJSON != null && !(params.has('reset'))) {
             try {
                 let data = JSON.parse(savedJSON);
                 game.deserialize(data);

@@ -11,8 +11,11 @@ import { SpriteH } from 'pixi-heaven';
 import { Event } from '../util/Event';
 import { Action, Updater } from '../util/Updater';
 import { lerp } from '../util/MathUtil';
+import { Indicator } from './Indicator';
 
 export class GameRenderer {
+
+    static clock: number = 0;
 
     readonly app: PIXI.Application<HTMLCanvasElement>;
     readonly game: Roots;
@@ -30,6 +33,8 @@ export class GameRenderer {
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
+    stonesIndicator: Indicator;
+    stonePiecesIndicator: Indicator;
     shareIcon: SpriteH;
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
@@ -44,6 +49,7 @@ export class GameRenderer {
     readonly onShare = new Event<void>();
 
     private readonly updater: Updater = new Updater();
+
 
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
@@ -231,6 +237,13 @@ export class GameRenderer {
             this.mainContainer.addChild(sprite);
             return sprite;
         });
+        this.stonesIndicator = new Indicator(radius * 2 * 2 * 1.5, 4);
+        this.stonesIndicator.x = (this.stoneRenderers[0].x + this.stoneRenderers[1].x) / 2;
+        this.stonesIndicator.y = height;
+        this.stonesIndicator.zIndex = 100;
+        this.stonesIndicator.showing = false;
+        this.mainContainer.addChild(this.stonesIndicator);
+
         this.stonePieceRenderers = Array.from(new Array(this.game.nStonePiecesPerStone).keys()).map(i => {
             let sprite = new PIXI.Graphics();
             sprite.beginFill(0xffffff);
@@ -245,6 +258,13 @@ export class GameRenderer {
             this.mainContainer.addChild(sprite);
             return sprite;
         });
+        this.stonePiecesIndicator = new Indicator(radius * 2 * 1.5, 4);
+        this.stonePiecesIndicator.x = xPadding;
+        this.stonePiecesIndicator.y = height;
+        this.stonePiecesIndicator.zIndex = 100;
+        this.stonePiecesIndicator.showing = false;
+        this.mainContainer.addChild(this.stonePiecesIndicator);
+
         let sprite = new PIXI.Graphics();
         sprite.lineStyle({width: 2, color: 0xffffff});
         sprite.moveTo(0, 0);
@@ -301,8 +321,11 @@ export class GameRenderer {
     }
 
     update(delta: number) {
+        GameRenderer.clock += delta;
         this.gridRenderer.update(delta);
         this.multitouch.update(delta);
         this.updater.update();
+        this.stonePiecesIndicator.update(delta);
+        this.stonesIndicator.update(delta);
     }
 }

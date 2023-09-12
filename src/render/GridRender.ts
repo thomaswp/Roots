@@ -4,6 +4,7 @@ import * as PIXI from "pixi.js";
 import { Container } from "pixi.js";
 import { GameRenderer } from "./GameRenderer";
 import { HexRenderer } from "./HexRenderer";
+import { Indicator } from "./Indicator";
 
 export class GridRenderer {
 
@@ -16,6 +17,8 @@ export class GridRenderer {
 
     width: number;
     height: number;
+
+    private indicators: Map<HexRenderer, Indicator> = new Map();
 
     constructor(renderer: GameRenderer, grid: Grid<Tile>) {
         this.grid = grid;
@@ -30,6 +33,22 @@ export class GridRenderer {
         }
         this.container.x = -this.width / 2;
         this.container.y = -this.height / 2;
+    }
+
+    setIndicatorShowing(hex: HexRenderer, showing: boolean) {
+
+        let indicator = this.indicators.get(hex);
+        if (!indicator && !showing) return;
+        if (!indicator) {
+            indicator = new Indicator(hex.width * 1.3);
+            indicator.x = hex.x;
+            indicator.y = hex.y;
+            indicator.zIndex = 100;
+            this.indicators.set(hex, indicator);
+            this.container.addChild(indicator);
+        }
+
+        indicator.showing = showing;
     }
 
     init() {
@@ -63,6 +82,9 @@ export class GridRenderer {
     update(delta: number) {
         this.hexes.forEach(hexRenderer => {
             hexRenderer.update(delta);
+        });
+        this.indicators.forEach(indicator => {
+            indicator.update(delta);
         });
     }
 

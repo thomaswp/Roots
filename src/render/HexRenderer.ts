@@ -11,10 +11,7 @@ export class HexRenderer extends Container {
     icon: SpriteH;
     hex: PIXI.Graphics;
     border: PIXI.Graphics;
-    private indicator: PIXI.Graphics;
     gridRenderer: GridRenderer;
-
-    public showingIndicator = false;
 
     private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
@@ -27,7 +24,6 @@ export class HexRenderer extends Container {
     private hovering = false;
     private hoveringTime = 0;
     private errorPerc = 0;
-    private clock = 0;
 
     private hidden = false;
 
@@ -47,6 +43,10 @@ export class HexRenderer extends Container {
         return -this.tile.center.y + this.tile.height / 2;
     }
 
+    set showingIndicator(showing: boolean) {
+        this.gridRenderer.setIndicatorShowing(this, showing);
+    }
+
     constructor(tile: Tile, gridRenderer: GridRenderer) {
         super();
         this.gridRenderer = gridRenderer;
@@ -54,7 +54,6 @@ export class HexRenderer extends Container {
 
         this.createHexAndBorder();
         this.createIcon();
-        this.createIndicator();
         this.addInteraction();
 
         this.x = this.renderer.invertAxes ? this.tileCenterY : this.tileCenterX;
@@ -67,7 +66,10 @@ export class HexRenderer extends Container {
     }
 
     setHidden(hidden: boolean) {
+        // Fade in when unhiding
+        if (!hidden && this.hidden) this.alpha = 0;
         this.hidden = hidden;
+        this.icon.alpha = this.hex.alpha = this.hidden ? 0 : 1;
         this.refresh();
     }
 
@@ -88,17 +90,6 @@ export class HexRenderer extends Container {
         this.addChild(icon);
     }
 
-    createIndicator() {
-        this.indicator = new PIXI.Graphics();
-        this.indicator.lineStyle(2, 0xffffff);
-        console.log(this.tile.width);
-        this.indicator.drawCircle(0, 0, this.tile.width * 0.7);
-        this.indicator.endFill();
-        this.indicator.zIndex = 10;
-        this.indicator.alpha = 0;
-        this.addChild(this.indicator);
-    }
-
     addInteraction() {
         let graphics = this.hex;
         let tile = this.tile;
@@ -107,17 +98,16 @@ export class HexRenderer extends Container {
 
         let isGesturing = () => this.renderer.multitouch.isGesturing;
         graphics.onpointerenter = graphics.onmouseenter = () => {
-            if (this.hidden) return;
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
-            this.gridRenderer.updateHover(tile.groupIndex, true);
+            // If hidden, act like a blank tile (index 0)
+            this.gridRenderer.updateHover(this.hidden ? 0 : tile.groupIndex, true);
             this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
         graphics.onpointerleave = graphics.onmouseleave =
         graphics.onpointerup = graphics.onmouseup = () => {
-            if (this.hidden) return;
             this.hovering = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
             this.refresh();
@@ -127,7 +117,6 @@ export class HexRenderer extends Container {
         }
         let lastCliked = 0;
         graphics.ontap = graphics.onclick = (e) => {
-            if (this.hidden) return;
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
@@ -152,7 +141,11 @@ export class HexRenderer extends Container {
                 }
             }
 
-            if (selectAll) {
+            // When hidden, act like a blank tile
+            if (this.hidden) selectAll = false;
+
+            // Tutorial disables double-click too
+            if (this.renderer.autoSelectGroup && selectAll) {
                 this.renderer.activateGroup(tile);
             } else if (!this.active) {
                 if (!this.renderer.activateTile(tile)) {
@@ -211,7 +204,6 @@ export class HexRenderer extends Container {
     }
 
     update(delta: number) {
-        this.clock += delta;
 
         for (let [playerIndex, time] of this.hoveringPlayers) {
             this.hoveringPlayers.set(playerIndex, time - delta);
@@ -263,16 +255,9 @@ export class HexRenderer extends Container {
             lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005)
         );
 
-        if (!this.hidden && this.alpha < 1) {
+        if (this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
         }
-
-        let indicatorClockCycle = 100;
-        let indicatorClock = (this.clock % indicatorClockCycle) / indicatorClockCycle;
-        let targetIndicatorScale = 1 + indicatorClock * 0.5;
-        let targetIndicatorAlpha = this.showingIndicator ? (1 - indicatorClock * 2) : 0;
-        this.indicator.alpha = lerp(this.indicator.alpha, targetIndicatorAlpha, delta * 0.3, 0.005);
-        this.indicator.scale.x = this.indicator.scale.y = targetIndicatorScale / this.scale.y;
     }
 
     unlock() {
@@ -289,16 +274,16 @@ export class HexRenderer extends Container {
         let tile = this.tile;
         let hex = this.hex;
 
-        if (this.hidden) {
-            this.alpha = 0;
-        }
-
         if (tile.unlocked && !this.unlocked) {
             this.unlock();
         }
 
         let active = tile.unlocked || this.active;
-        let hovering = this.hovering || this.gridRenderer.hoverGroupIndex === tile.groupIndex;
+        let hovering = this.hovering;
+
+        if (this.gridRenderer.hoverGroupIndex === tile.groupIndex && !this.hidden) {
+            hovering = true;
+        }
 
         let groupCountColor = this.getGroupColor();
 
@@ -324,7 +309,7 @@ export class HexRenderer extends Container {
         // Tie breaking for consistency
         zIndex += (tile.q + tile.r * 0.1) * 0.001;
 
-        if (tile.isStoneTile && !(tile.unlocked || this.hoveringPlayers.size > 0)) {
+        if (!this.hidden && tile.isStoneTile && !(tile.unlocked || this.hoveringPlayers.size > 0)) {
             lineColor = new PIXI.Color(groupCountColor);
             if (!active) lineColor.multiply(new PIXI.Color(0xbbbbbb)); //new PIXI.Color(0xffd700);
             zIndex += 0.5;

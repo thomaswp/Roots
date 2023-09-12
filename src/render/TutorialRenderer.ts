@@ -31,6 +31,8 @@ export class TutorialController {
 
     isError: boolean = false;
 
+    private lastUnlockedCount = 0;
+
     tutorialStepIndex = 0;
     tutorialSteps: TutorialStep[] = [
         {
@@ -113,7 +115,7 @@ export class TutorialController {
             isReady: () => this.isError,
             activate: () => {
                 this.clearIndicators();
-                // TODO: Hilight stones somehow
+                this.renderer.stonesIndicator.showing = true;
             },
             text: 'Oops, you can only *activate* two tiles at a time. ' +
                 'You can see how many tiles you have left to activate in the bottom-left corner of the screen. ' + 
@@ -131,6 +133,7 @@ export class TutorialController {
             name: 'up to stone',
             isReady: () => this.currentMoveset[4].tile.unlocked,
             activate: () => {
+                this.renderer.stonesIndicator.showing = false;
                 this.updateShowing(this.currentMoveset.slice(0, this.currentMoveset.length - 2));
 
             },
@@ -154,8 +157,6 @@ export class TutorialController {
             text: 'Gray *stone tiles* are special. If you *unlock* three pairs of them, '
                 + 'you can *activate* one extra tile at a time.',
         },
-        // TODO: Combine second and third moveset
-        // TODO: On mobile, explain panning
         {
             name: 'second moveset',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
@@ -171,14 +172,16 @@ export class TutorialController {
             activate: () => {
                 this.findNextMoveset();
                 this.updateShowing(this.currentMoveset);
+                this.renderer.stonePiecesIndicator.showing = true;
             },
-            text: '*Unlock* all of the *stone tiles* to proceed.',
+            text: '*Unlock* all three *stone tile* pairs to proceed. ' + 
+                'You can see your progress in the bottom-left corner of the screen.',
         },
-        // TODO: Use fixed seed for fixed order: introduce gap (step by step) and then tripple
         {
             name: 'extra stone',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
             activate: () => {
+                this.renderer.stonePiecesIndicator.showing = false;
                 this.findNextMoveset();
                 this.currentMoveset = this.currentMoveset.filter(h => !h.tile.unlocked);
                 let nextGroup = this.currentMoveset.filter(h => !h.tile.unlocked)[0].tile.groupIndex;
@@ -190,7 +193,7 @@ export class TutorialController {
                 this.updateShowing([...nextMove, ...intersectingHexes]);
             },
             text: 'Now you can *activate* three tiles at a time! ' +
-                'You can even activate blank (black) tiles if needed.' +
+                'You can even activate blank (black) tiles if needed. ' +
                 'Now, *unlock* another pair of tiles.',
         },
         {
@@ -200,11 +203,12 @@ export class TutorialController {
                 this.clearIndicators();
                 let firstTripleIndex = this.currentMoveset.findIndex(t => t.tile.groupCount == 3);
                 let pairs = this.currentMoveset.slice(0, firstTripleIndex);
-                let toShow = pairs.flatMap(t => t.tile.getNeighbors());
-                this.updateShowing(toShow.map(t => this.getHexForTile(t)).concat(pairs));
+                // let toShow = pairs.flatMap(t => t.tile.getNeighbors());
+                // this.updateShowing(toShow.map(t => this.getHexForTile(t)).concat(pairs));
+                this.updateShowing(pairs);
             },
-            text: 'Great! Now, keep unlocking red tiles. ' + 
-                'Ignore the other colors for now, unless you need to *activate* one to connect a pair.',
+            text: 'Great! Now, keep unlocking red tiles.', 
+                // 'Ignore the other colors for now, unless you need to *activate* one to connect a pair.',
         },
         {
             name: 'tripple',
@@ -214,6 +218,7 @@ export class TutorialController {
                 let toShow = this.currentMoveset.slice(firstTripleIndex, firstTripleIndex + 3);
                 toShow.forEach(t => t.showingIndicator = true);
                 this.updateShowing(toShow);
+                this.lastUnlockedCount = this.getUnlockedCount();
             },
             text: 'Some tiles are in groups of three, colored yellow. ' +
                 'All three need to be selected and connected to unlock. ' +
@@ -227,54 +232,84 @@ export class TutorialController {
                 this.currentMoveset.filter(t => t.tile.isStoneTile).forEach(t => t.showingIndicator = true);
                 let triples = this.hexes.filter(t => t.tile.groupCount <= 3 && !t.tile.isStoneTile);
                 this.updateShowing([...this.currentMoveset, ...triples]);
+                this.lastUnlockedCount = this.getUnlockedCount();
             },
             text: 'The full map has many more pairs and triples. ' +
                 'Try to unlock another group of *stone tiles*.'
         },
         {
             name: 'quads',
-            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 13,
+            isReady: () => this.getUnlockedCount() >= this.lastUnlockedCount + 2,
             activate: () => {
-                let quads = this.hexes.filter(t => t.tile.groupCount == 4 && !t.tile.isStoneTile);
+                // let quads = this.hexes.filter(t => t.tile.groupCount == 4 && !t.tile.isStoneTile);
+                let quadIndex = this.hexes.filter(t => t.tile.groupCount == 4 && !t.tile.isStoneTile)[0].tile.groupIndex;
+                let quads = this.hexes.filter(t => t.tile.groupIndex == quadIndex);
                 this.updateShowing(quads);
+                this.lastUnlockedCount = this.getUnlockedCount();
             },
             text: 'Groups with four tiles are colored green. ' +
                 'You\'ll need to unlock 3 more groups of stone tiles to unlock them.'
         },
         {
             name: '5s and 6s',
-            isReady: () => this.currentMoveset.filter(t => t.tile.unlocked).length >= 13,
+            isReady: () => this.getUnlockedCount() >= this.lastUnlockedCount + 2,
             activate: () => {
-                let rest = this.hexes.filter(t => !t.tile.isStoneTile);
-                this.updateShowing(rest);
+                let pentIndex = this.hexes.filter(t => t.tile.groupCount == 5 && !t.tile.isStoneTile)[0].tile.groupIndex;
+                let hexIndex = this.hexes.filter(t => t.tile.groupCount == 6 && !t.tile.isStoneTile)[0].tile.groupIndex;
+                let show = this.hexes.filter(t => t.tile.groupIndex == pentIndex || t.tile.groupIndex == hexIndex);
+                // let rest = this.hexes.filter(t => !t.tile.isStoneTile);
+                this.updateShowing(show);
             },
             text: 'Groups with five tiles are colored blue, and those with. ' +
                 'six are colored purple. Now finish unlocking the stone tiles!'
         },
         {
-            name: 'finish',
+            name: 'toFourStones',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
+            activate: () => {
+                this.clearIndicators();
+                let sortedHexes = this.getIconHexes().sort((a, b) => a.tile.groupIndex - b.tile.groupIndex);
+                let lockedStoneTiles = sortedHexes.filter(t => t.tile.isStoneTile && !t.tile.unlocked);
+                let nextTwoStoneGroups = lockedStoneTiles.slice(0, 4);
+                console.log(sortedHexes, lockedStoneTiles, nextTwoStoneGroups);
+                nextTwoStoneGroups.forEach(h => h.showingIndicator = true);
+                let toShow = this.hexes.filter(h => h.tile.groupIndex <= nextTwoStoneGroups[3].tile.groupIndex);
+                this.updateShowing(toShow);
+            },
+            text: 'Good work! Now *unlock* two more pairs of stone tiles!'
+        },
+        {
+            name: 'fourStones',
+            isReady: () => this.renderer.game.nStones == 4,
             activate: () => {
                 this.clearIndicators();
                 this.updateShowing(this.hexes);
                 removeUrlParam('tutorial');
+                setUrlParam('seed', this.renderer.game.seed);
+                this.lastUnlockedCount = this.getUnlockedCount();
             },
-            text: 'Now you can see the whole board. This is the last step of the tutorial. ' +
-                'Unlock two more groups of stone tiles, and then keep working until you have unlocked all the tiles!'
+            text: 'Now you can see the whole board, and you can *activate* four tiles at a time! ' + 
+                'This is the last step of the tutorial. ' +
+                'Keep working until you have unlocked all the tiles!'
         },
         {
             name: 'finish',
-            isReady: () => this.renderer.game.nStones == 4,
+            isReady: () => this.getUnlockedCount() > this.lastUnlockedCount,
             activate: () => {
                 
             },
             text: ''
         },
+        // TODO: On mobile, explain panning
     ];
 
     constructor(renderer: GameRenderer) {
         this.renderer = renderer;
         this.init();
+    }
+
+    getUnlockedCount() {
+        return this.tiles.filter(t => t.unlocked).length;
     }
 
     init() {
