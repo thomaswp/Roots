@@ -98,7 +98,8 @@ export class HexRenderer extends Container {
 
         let isGesturing = () => this.renderer.multitouch.isGesturing;
         graphics.onpointerenter = graphics.onmouseenter = () => {
-            if (isGesturing()) return;
+            // if (isGesturing()) return;
+            if (this.renderer.multitouch.isPinching) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
             // If hidden, act like a blank tile (index 0)

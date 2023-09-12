@@ -291,7 +291,7 @@ export class GameRenderer {
 
         this.tutorialText = new PIXI.Text('', {
             fontFamily: 'Arial',
-            fontSize: 24,
+            fontSize: 36,
             fill: 0xeeeeee,
             align: 'center',
         });
@@ -300,7 +300,7 @@ export class GameRenderer {
         this.tutorialText.x = this.app.screen.width / 2;
         this.tutorialText.y = this.app.screen.height * 0.03;
         this.tutorialText.style.wordWrap = true;
-        this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.4;
+        this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
         this.tutorialText.style.dropShadow = true;
         this.tutorialText.style.dropShadowColor = 0x000000;
         this.tutorialText.style.dropShadowDistance = 2;
