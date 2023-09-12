@@ -11,11 +11,9 @@ import tutorialLevel from "./TutorialLevel.json";
 window.onload = function() {
     // Create the application helper and add its render target to the page
     let app = new PIXI.Application<HTMLCanvasElement>({
-        // TODO: Unclear why -2 is necessary...
-        width: document.documentElement.clientWidth - 2,
-        height: document.documentElement.clientHeight - 2,
         antialias: true,
         autoDensity: true,
+        resizeTo: window,
     });
     document.body.appendChild(app.view);
 
@@ -35,11 +33,12 @@ window.onload = function() {
         if (paramSeed.length > 0) {
             seed = paramSeed;
         }
-        setUrlParam('seed', seed);
     } else if (isTutorial) {
         seed = tutorialLevel.seed; // "pick"
+    } else {
+        setUrlParam('seed', seed);
     }
-    
+
     const game = new Roots(seed);
     const net = new Network(game);
 

@@ -42,21 +42,27 @@ export class Multitouch {
         this.scaleViewport.scale.x = this.scaleViewport.scale.y = value;
     }
 
+    resetTransform() {
+        let app = this.app;
+        this.scaleViewport.x = app.view.width / 2;
+        this.scaleViewport.y = app.view.height / 2;
+
+        this.minScale = Math.min(app.view.width / this.width, app.view.height / this.height);
+
+        this.scale = this.targetScale = this.minScale;
+    }
 
     constructor(renderer: GameRenderer, parent: PIXI.Container, width: number, height: number) {
         this.renderer = renderer;
         let app = this.app = renderer.app;
         this.viewport = this.panViewport = new PIXI.Container();
         this.scaleViewport = new PIXI.Container();
-        this.scaleViewport.x = app.view.width / 2;
-        this.scaleViewport.y = app.view.height / 2;
-
-        this.minScale = Math.min(app.view.width / width, app.view.height / height);
-
-        this.scale = this.targetScale = this.minScale;
-
+        
         this.width = width;
         this.height = height;
+
+        this.resetTransform();
+
 
         // this.scaleViewport.scale.x = this.scaleViewport.scale.y = 2;
 

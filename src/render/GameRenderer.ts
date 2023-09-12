@@ -63,6 +63,12 @@ export class GameRenderer {
         app.stage.addChild(this.mainContainer);
 
         this.initGroups();
+
+        window.addEventListener('resize', () => {
+            setTimeout(() => {
+                this.multitouch.resetTransform();
+            });
+        });
     }
 
     get activeTileCount() : number {
@@ -301,10 +307,10 @@ export class GameRenderer {
         this.mainContainer.addChild(this.shareIcon);
         // Position in bottom-right corner
 
-        this.shareIcon.color.setDark(1, 1, 1);
-        this.shareIcon.anchor.set(1, 1);
-        this.shareIcon.x = this.app.screen.width - 10;
-        this.shareIcon.y = this.app.screen.height - 10;
+        this.shareIcon.color.setDark(0.7, 0.7, 0.7);
+        this.shareIcon.anchor.set(0, 0);
+        this.shareIcon.x = 10;
+        this.shareIcon.y = 10;
         this.shareIcon.width = 25;
         this.shareIcon.height = 25;
         this.shareIcon.interactive = true;
@@ -312,10 +318,20 @@ export class GameRenderer {
             this.onShare.emit();
         });
         this.shareIcon.on('mouseover', () => {
-            this.shareIcon.color.setDark(1, 0.5, 1);
+            this.updater.run(() => {
+                let dark = this.shareIcon.color.dark[0];
+                dark = lerp(dark, 1, 0.2, 0.01);
+                this.shareIcon.color.setDark(dark, dark, dark);
+                return dark < 1;
+            }).unique('shareIconHover', true);
         });
         this.shareIcon.on('mouseout', () => {
-            this.shareIcon.color.setDark(1, 1, 1);
+            this.updater.run(() => {
+                let dark = this.shareIcon.color.dark[0];
+                dark = lerp(dark, 0.7, 0.2, 0.01);
+                this.shareIcon.color.setDark(dark, dark, dark);
+                return dark > 0.7;
+            }).unique('shareIconHover', true);
         });
         this.shareIcon.visible = !this.isTutorial;
     }
