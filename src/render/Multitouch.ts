@@ -126,6 +126,8 @@ export class Multitouch {
                 return;
             }
 
+            this.renderer.gridRenderer.clearHover();
+
             this.targetPan.set(
                 this.panStart.x + e.deltaX / this.scale,
                 this.panStart.y + e.deltaY / this.scale

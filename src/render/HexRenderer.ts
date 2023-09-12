@@ -13,6 +13,8 @@ export class HexRenderer extends Container {
     border: PIXI.Graphics;
     gridRenderer: GridRenderer;
 
+    hovering = false;
+
     private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
     private unlocked = false;
@@ -21,7 +23,6 @@ export class HexRenderer extends Container {
     private targetIconColor = new PIXI.Color(0x000000);
     private targetScale = 1;
     private targetZIndex = 0;
-    private hovering = false;
     private hoveringTime = 0;
     private errorPerc = 0;
 
@@ -97,9 +98,8 @@ export class HexRenderer extends Container {
         graphics.interactive = true;
 
         let isGesturing = () => this.renderer.multitouch.isGesturing;
-        const onDown = (e) => {
-            // if (isGesturing()) return;
-            if (this.renderer.multitouch.isPinching) return;
+        const onDown = (e, whenGesturing = false) => {
+            if (!whenGesturing && isGesturing()) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
             // If hidden, act like a blank tile (index 0)
@@ -107,13 +107,23 @@ export class HexRenderer extends Container {
             this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
-        graphics.onpointerenter = graphics.onmouseenter = onDown;
-        graphics.onpointerleave = graphics.onmouseleave =
-        graphics.onpointerup = graphics.onmouseup = () => {
+        const onUp = (e) => {
             this.hovering = false;
             this.gridRenderer.updateHover(tile.groupIndex, false);
             this.refresh();
+        };
+        graphics.onpointerenter = graphics.onmouseenter = onDown;
+        graphics.onpointerleave = graphics.onmouseleave = onUp;
+
+        // Pointer down should also start hover, even when "gesturing"
+        graphics.onpointerdown = (e) => {
+            onDown(e, true);
         }
+        // When the pointer is raised, regardless of the tile, clear all hovering
+        graphics.onpointerup = (e) => {
+            this.gridRenderer.clearHover();
+        }
+
         graphics.onrightclick = (e) => {
             this.renderer.clearActiveTiles();
         }
@@ -158,12 +168,7 @@ export class HexRenderer extends Container {
             }
             this.refresh();
         }
-        graphics.onclick = onClick;
-        graphics.ontap = (e) => {
-            onClick(e);
-            // When tapping, if gesturing, we may still want to "hover"
-            if (isGesturing()) onDown(e);
-        }
+        graphics.ontap = graphics.onclick = onClick;
     }
 
     createHexAndBorder() {
