@@ -102,7 +102,7 @@ export class HexRenderer extends Container {
             if (this.tile.unlocked) return;
             this.hovering = true;
             // If hidden, act like a blank tile (index 0)
-            this.gridRenderer.updateHover(this.hidden ? 0 : tile.groupIndex, true);
+            this.gridRenderer.updateHover(this.hidden ? null : tile.groupIndex, true);
             this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
