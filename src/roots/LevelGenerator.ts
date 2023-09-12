@@ -112,6 +112,13 @@ export class LevelGenerator {
 
     static readonly maxGroupIndex = 200;
 
+    private stepGeneration: () => boolean;
+
+    get progress() : number {
+        let grid = this.grid.toArray();
+        return grid.filter(tile => tile.groupIndex != null).length / grid.length;
+    }
+
     constructor(seed: string, width: number, height: number) {
         console.log(findSubsetsThatSumTo);
         this.width = width;
@@ -142,7 +149,7 @@ export class LevelGenerator {
         );
     }
 
-    generate() {
+    startGeneration() {
         let gridAdapter = new GridAdapter(this.grid);
 
         let groupedTiles = [];
@@ -345,12 +352,17 @@ export class LevelGenerator {
         createNewMovesets();
         console.log('initial movesets', movesets);
 
-        while (ungroupedTiles.length >= stones && nextGroupIndex < LevelGenerator.maxGroupIndex) {
+        // Steps the generation process and returns true if it's done
+        this.stepGeneration = () => {
+            if (!(ungroupedTiles.length >= stones && nextGroupIndex < LevelGenerator.maxGroupIndex)) {
+                return true;
+            }
+
             attemptsSinceLastProgress++;
             if (attemptsSinceLastProgress > maxAttempts) {
                 // If we've tried enough with unions allowed, we're really stuck, so bail out
                 if (allowNonMinMovesets) {
-                    break;
+                    return true;
                 }
                 // If not, allow unions and keep trying
                 allowNonMinMovesets = true;
@@ -377,10 +389,10 @@ export class LevelGenerator {
                 (this.random() * moveset.tiles.size > (stones - 1) * 5);
 
             let next = selectNextBaseTile(moveset, new Set(), createStoneMove);
-            if (next == null) continue;
+            if (next == null) return false;
             let {tile, dependentMove} = next;
             let move = createMove(tile, dependentMove);
-            if (move == null) continue;
+            if (move == null) return false;
             moveset.addMove(move);
 
             // We've made progress, so reset the attempts counter
@@ -427,8 +439,14 @@ export class LevelGenerator {
                     }
                 }
             };
+        };
+    }
+
+    step() {
+        if (!this.stepGeneration) {
+            this.startGeneration();
         }
-        return this.grid;
+        return this.stepGeneration();
     }
 }
 
