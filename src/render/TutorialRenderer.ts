@@ -51,7 +51,7 @@ export class TutorialController {
             activate: () => {
                 
             },
-            text: '*Deactivate* the by {clicking} on it again.',
+            text: '*Deactivate* the tile by {clicking} on it again.',
         },
         {
             name: 'activate second',
@@ -333,10 +333,31 @@ export class TutorialController {
         let nextStep = this.tutorialSteps[this.tutorialStepIndex];
         if (nextStep.isReady()) {
             nextStep.activate();
-            this.renderer.showTutorialText(nextStep.text);
+            let text = this.formatText(nextStep.text);
+            this.renderer.showTutorialText(text);
             console.log('starting tutorial step:', nextStep.name, nextStep, this);
             this.tutorialStepIndex++;
         }
+    }
+
+    formatText(text: string) : string {
+        let replaceMap = {
+            '{click}': this.isTouchDevice() ? 'tap' : 'click',
+            '{clicking}': this.isTouchDevice() ? 'tapping' : 'clicking',
+            '{right clicking}': this.isTouchDevice() ? 'tapping with two fingers' : 'right clicking',
+        };
+        Object.keys(replaceMap).forEach(key => {
+            text = text.replace(key, replaceMap[key]);
+        });
+        // TODO: Replace any text surrounded by asterisks with bold text (ideally)
+        // Currently, this just removes the asterisks, as it's not supported
+        text = text.replace(/\*([^*]+)\*/g, '$1');
+        return text;
+    }
+
+    isTouchDevice() {
+        return (('ontouchstart' in window) ||
+           (navigator.maxTouchPoints > 0));
     }
 
     updateShowing(addedTiles: HexRenderer[]) {
