@@ -35,6 +35,10 @@ export class GridRenderer {
         this.container.y = -this.height / 2;
     }
 
+    getHexForTile(tile: Tile) {
+        return this.hexes.filter(t => t.tile == tile)[0];
+    }
+
     setIndicatorShowing(hex: HexRenderer, showing: boolean) {
 
         let indicator = this.indicators.get(hex);

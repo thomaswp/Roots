@@ -74,6 +74,12 @@ export class GameRenderer {
                 }
             });
         });
+
+        document.oncontextmenu = document.body.oncontextmenu = (e) => {
+            // Prevent a context menu, and clear active tiles
+            this.clearActiveTiles();
+            e.preventDefault();
+        }
     }
 
     get activeTileCount() : number {
@@ -135,8 +141,10 @@ export class GameRenderer {
     }
 
     activateGroup(tile: Tile) {
-        let unclickedTiles = this.game.groups[tile.groupIndex].filter(t => !this.isTileActive(t));
-            // console.log('Considering ', unclickedTiles.length, unclickedTiles)
+        let unclickedTiles = this.game.groups[tile.groupIndex]
+            .filter(t => !this.isTileActive(t))
+            // Don't include hidden tiles during the tutorial!
+            .filter(t => !this.gridRenderer.getHexForTile(t).isHidden());
         if (this.nFreeStones >= unclickedTiles.length) {
             // console.log("go!!");
             unclickedTiles.forEach(t => this.activateTile(t, true));

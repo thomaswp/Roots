@@ -1,2 +1,4 @@
-* In multiplayer, deselect any tiles activated by a peer
-* Show what peers are hovering over
+Eventually: 
+* Make a hint button
+* Sounds for unlocking, activating, error and winning
+* Victory!
