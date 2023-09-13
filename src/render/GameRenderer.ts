@@ -311,7 +311,9 @@ export class GameRenderer {
         this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
         this.tutorialText.style.dropShadow = true;
         this.tutorialText.style.dropShadowColor = 0x000000;
-        this.tutorialText.style.dropShadowDistance = 2;
+        this.tutorialText.style.dropShadowDistance = 0;
+        this.tutorialText.style.dropShadowBlur = 3;
+        this.tutorialText.style.dropShadowAlpha = 0.8;
         this.mainContainer.addChild(this.tutorialText);
 
         this.stepTutorial();
