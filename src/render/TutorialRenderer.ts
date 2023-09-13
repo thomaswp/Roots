@@ -43,11 +43,11 @@ export class TutorialController {
                 this.updateShowing(this.currentMoveset.slice(0, 1));
                 this.currentMoveset[0].showingIndicator = true;
             },
-            text: '*Activate* a tile by {clicking} on it.',
+            text: '*Activate* the red tile by {clicking} on it.',
         },
         {
             name: 'deactivate first',
-            isReady: () => this.renderer.activeTileCount == 1,
+            isReady: () => this.countActivatedNonHiddenTiles() == 1,
             activate: () => {
                 
             },
@@ -91,7 +91,7 @@ export class TutorialController {
         // },
         {
             name: 'show mddle',
-            isReady: () => this.renderer.activatedTiles.size == 2,
+            isReady: () => this.countActivatedNonHiddenTiles() == 2,
             activate: () => {
                 // let grid = this.renderer.game.grid;
                 // let toShow = this.currentMoveset.slice(0, 2).filter(r => {
@@ -123,7 +123,7 @@ export class TutorialController {
         },
         {
             name: 'match',
-            isReady: () => this.renderer.activatedTiles.size == 0,
+            isReady: () => this.renderer.activeTileCount == 0,
             activate: () => {
                 this.updateShowing(this.currentMoveset.slice(0, 4));
             },
@@ -197,8 +197,7 @@ export class TutorialController {
                 this.updateShowing([...nextMove, ...intersectingHexes], true);
             },
             text: 'Now you can *activate* three tiles at a time! ' +
-                'You can even activate blank (black) tiles if needed. ' +
-                'Now, *unlock* another pair of tiles.',
+                'Try to *unlock* another pair of tiles.',
         },
         {
             name: 'up to tripple',
@@ -211,7 +210,8 @@ export class TutorialController {
                 // this.updateShowing(toShow.map(t => this.getHexForTile(t)).concat(pairs));
                 this.updateShowing(pairs, true);
             },
-            text: 'Great! Now, keep unlocking red tiles.', 
+            text: 'Great! Now, keep unlocking red tiles. ' +
+                'You can even activate blank (black) tiles if needed.', 
                 // 'Ignore the other colors for now, unless you need to *activate* one to connect a pair.',
         },
         {
@@ -392,6 +392,12 @@ export class TutorialController {
 
     getHexForTile(tile: Tile) {
         return this.renderer.gridRenderer.getHexForTile(tile);
+    }
+
+    countActivatedNonHiddenTiles() {
+        return [...this.renderer.activatedTiles]
+                .filter(t => !this.getHexForTile(t).isHidden())
+                .length;
     }
 
     getIconHexes() {
