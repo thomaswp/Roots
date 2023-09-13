@@ -18,11 +18,6 @@ window.onload = function() {
     });
     document.body.appendChild(app.view);
 
-    document.oncontextmenu = document.body.oncontextmenu = function(e) {
-        e.preventDefault();
-        // return false;
-    }
-
     // TODO: Resize app on resize events and update things...
 
     // Bug in the library - gives back a string, rather than a string[].

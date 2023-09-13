@@ -193,6 +193,7 @@ export class TutorialController {
                 let intersect = neighborTiles[0].filter(t => neighborTiles[1].includes(t));
                 let intersectingHexes = this.hexes.filter(h => intersect.includes(h.tile));
                 intersectingHexes[1].showingIndicator = true;
+                nextMove.forEach(h => h.showingIndicator = true);
                 this.updateShowing([...nextMove, ...intersectingHexes], true);
             },
             text: 'Now you can *activate* three tiles at a time! ' +
@@ -263,7 +264,7 @@ export class TutorialController {
                 // let rest = this.hexes.filter(t => !t.tile.isStoneTile);
                 this.updateShowing(show);
             },
-            text: 'Groups with five tiles are colored blue, and those with. ' +
+            text: 'Groups with five tiles are colored blue, and those with ' +
                 'six are colored purple. Now finish unlocking the stone tiles!'
         },
         {
@@ -279,7 +280,8 @@ export class TutorialController {
                 let toShow = this.hexes.filter(h => h.tile.groupIndex <= nextTwoStoneGroups[3].tile.groupIndex);
                 this.updateShowing(toShow);
             },
-            text: 'Good work! Now *unlock* two more pairs of stone tiles!'
+            text: 'Good work! Now *unlock* two more pairs of *stone tiles*! ' +
+                'You might need to start by *unlocking* tiles far away from the *stone tiles*.'
         },
         {
             name: 'fourStones',
@@ -389,7 +391,7 @@ export class TutorialController {
     }
 
     getHexForTile(tile: Tile) {
-        return this.hexes.filter(t => t.tile == tile)[0];
+        return this.renderer.gridRenderer.getHexForTile(tile);
     }
 
     getIconHexes() {

@@ -66,6 +66,10 @@ export class HexRenderer extends Container {
         this.refresh();
     }
 
+    isHidden() : boolean {
+        return this.hidden;
+    }
+
     setHidden(hidden: boolean) {
         // Fade in when unhiding
         if (!hidden && this.hidden) this.alpha = 0;
