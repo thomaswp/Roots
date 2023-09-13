@@ -69,6 +69,7 @@ export class GameRenderer {
                 if (this.isTutorial) {
                     this.multitouch.resetTransform();
                     this.tutorialRenderer.updateShowing([]);
+                    this.resizeTutorialText();
                 } else {
                     this.multitouch.resetTransform();
                 }
@@ -228,6 +229,12 @@ export class GameRenderer {
         this.tutorialText.visible = false;
     }
 
+    resizeTutorialText() {
+        this.tutorialText.x = this.app.screen.width / 2;
+        this.tutorialText.y = this.app.screen.height * 0.03;
+        this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
+    }
+
     start() {
         this.app.ticker.add(delta => {
             this.update(delta);
@@ -303,12 +310,10 @@ export class GameRenderer {
             fill: 0xeeeeee,
             align: 'center',
         });
+        this.resizeTutorialText();
         this.tutorialText.zIndex = 100;
         this.tutorialText.anchor.set(0.5, 0);
-        this.tutorialText.x = this.app.screen.width / 2;
-        this.tutorialText.y = this.app.screen.height * 0.03;
         this.tutorialText.style.wordWrap = true;
-        this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
         this.tutorialText.style.dropShadow = true;
         this.tutorialText.style.dropShadowColor = 0x000000;
         this.tutorialText.style.dropShadowDistance = 0;
