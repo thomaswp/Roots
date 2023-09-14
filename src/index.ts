@@ -46,14 +46,21 @@ window.onload = function() {
         window.localStorage.setItem(seed, JSON.stringify(data));
     });
 
-    const shareJoinURL = (joinID: string) => {
+    const shareJoinURL = async (joinID: string) => {
         let url = location.protocol + '//' + location.host + location.pathname;
         let params = new URLSearchParams(window.location.search);
         params.set('joinID', joinID);
         params.delete('hostID');
         let joinURL = url + '?' + params.toString();
-        navigator.clipboard.writeText(joinURL);
-        alert('Attempted to copy join link to clipboard:\n' + joinURL);
+        try {
+            await navigator.clipboard.writeText(joinURL);
+            alert('Join link copied to clipboard!');
+        } catch (e) {
+            // TODO: display some UI with the link so it can be copied manually. text can't be
+            // copied from alerts.
+            alert('Failed to copy join link to clipboard. Check the console for more details.');
+            console.info(`Join link: ${joinURL}`);
+        }
     }
 
     const startGame = () => {
