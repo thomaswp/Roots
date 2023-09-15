@@ -50,12 +50,14 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
     //     this.game.tileClicked(this, doubleClick);
     // }
 
-    getNeighbors(): Tile[] {
+    getNeighbors(nullPlaceholders = false): Tile[] {
         let neighbors = [];
         for (let i = 0; i < 8; i++) {
             let neighbor = this.grid.neighborOf(this, i, {allowOutside: false});
             if (neighbor) {
                 neighbors.push(neighbor);
+            } else if (nullPlaceholders) {
+                neighbors.push(null);
             }
         }
         return neighbors;
