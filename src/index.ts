@@ -58,7 +58,7 @@ window.onload = function() {
         } catch (e) {
             // TODO: display some UI with the link so it can be copied manually. text can't be
             // copied from alerts.
-            alert('Failed to copy join link to clipboard. Check the console for more details.');
+            alert('Failed to copy join link to clipboard. Copy the following link: ' + joinURL);
             console.info(`Join link: ${joinURL}`);
         }
     }
