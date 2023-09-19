@@ -78,8 +78,8 @@ export class GameRenderer {
 
         document.oncontextmenu = document.body.oncontextmenu = (e) => {
             // Prevent a context menu, and clear active tiles
-            this.clearActiveTiles();
             e.preventDefault();
+            this.clearActiveTiles();
         }
     }
 

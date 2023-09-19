@@ -5,15 +5,18 @@ import { GridRenderer } from "./GridRender";
 import { GameRenderer } from "./GameRenderer";
 import { SpriteH } from "pixi-heaven";
 import { lerp, lerpHexColor } from "../util/MathUtil";
+import { Direction } from "honeycomb-grid";
 
 export class HexRenderer extends Container {
-    tile: Tile;
-    icon: SpriteH;
-    hex: PIXI.Graphics;
-    border: PIXI.Graphics;
-    gridRenderer: GridRenderer;
-
+    readonly tile: Tile;
+    readonly gridRenderer: GridRenderer;
+    
     hovering = false;
+
+    private icon: SpriteH;
+    private hex: PIXI.Graphics;
+    private border: PIXI.Container;
+    private borderPieces: PIXI.Graphics[] = [];
 
     private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
@@ -198,12 +201,23 @@ export class HexRenderer extends Container {
         hex.endFill();
         this.addChild(hex);
 
-        let border = this.border = new PIXI.Graphics();
-        border.clear();
-        border.lineStyle(3, 0xffffff);
-        border.drawPolygon(translatedCorners);
-        border.endFill();
+        let border = this.border = new PIXI.Container();
         this.addChild(border);
+        for (let i = 0; i < 6; i++) {
+            let piece = new PIXI.Graphics();
+            this.borderPieces.push(piece);
+            let startCorner = translatedCorners[i % 6];
+            let endCorner = translatedCorners[(i + 1) % 6];
+            if (this.tile.groupIndex == 0) {
+                console.log(i, startCorner, endCorner);
+            }
+            piece.moveTo(startCorner.x, startCorner.y);
+            piece.lineTextureStyle({cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND, width: 3, color: 0xffffff})
+            // piece.lineStyle(3, 0xffffff);
+            piece.lineTo(endCorner.x, endCorner.y);
+            piece.endFill();
+            border.addChild(piece);
+        }
     }
 
     showError() {
@@ -263,7 +277,13 @@ export class HexRenderer extends Container {
         }
 
         this.hex.tint = lerpHexColor(this.hex.tint, targetColor, delta * colorShiftSpeed);
-        this.border.tint = lerpHexColor(this.border.tint, targetBorderColor, delta * colorShiftSpeed);
+        let startTint = this.borderPieces[0].tint;
+        for (let piece of this.borderPieces) {
+            piece.tint = lerpHexColor(startTint, targetBorderColor, delta * colorShiftSpeed);
+            if (piece.alpha < 1) {
+                piece.alpha = lerp(piece.alpha, 0, delta * 0.1, 0.005);
+            }
+        }
         this.zIndex = targetZIndex;
 
         this.icon.color.setDark(
@@ -342,6 +362,33 @@ export class HexRenderer extends Container {
             this.targetHexColor = 0xeeeeee;
         } else {
             this.targetHexColor = active ? 0xffffff : 0x888888;
+        }
+
+        this.updateBorder();
+    }
+
+    updateBorder() {
+        if (!this.tile.unlocked) return;
+        
+        let index = 0;
+        let order = [
+            Direction.E,
+            Direction.SE,
+            Direction.SW,
+            Direction.W,
+            Direction.NW,
+            Direction.NE,
+        ]
+        let neighbors = this.tile.getNeighbors(true);
+        for (let dir of order) {
+            let piece = this.borderPieces[index];
+            index++;
+            let neighbor = neighbors[dir];
+            if (neighbor == null || !neighbor.unlocked) {
+                piece.alpha = 1;
+            } else {
+                piece.alpha -= 0.01;
+            }
         }
     }
 }
