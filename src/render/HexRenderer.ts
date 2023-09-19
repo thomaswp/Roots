@@ -276,21 +276,38 @@ export class HexRenderer extends Container {
             targetZIndex = 5;
         }
 
+        let targetIconRotation = 0;
+        if (this.active) {
+            let t = GameRenderer.clock * 0.1;
+            targetIconRotation = Math.cos(t) * 0.25;
+        }
+        this.icon.rotation = lerp(this.icon.rotation, targetIconRotation, delta * 0.1, 0.005);
+
         this.hex.tint = lerpHexColor(this.hex.tint, targetColor, delta * colorShiftSpeed);
-        let startTint = this.borderPieces[0].tint;
-        for (let piece of this.borderPieces) {
-            piece.tint = lerpHexColor(startTint, targetBorderColor, delta * colorShiftSpeed);
+        
+        for (let i = 0; i < this.borderPieces.length; i++) {
+            let piece = this.borderPieces[i];
+            let startTint = piece.tint;
+            let pieceTarget = targetBorderColor;
+            // if (this.active) {
+            //     let t = GameRenderer.clock * 0.1 + i * Math.PI * 2 / this.borderPieces.length;
+            //     let perc = Math.cos(t) * 0.15 + 0.85;
+            //     pieceTarget = new PIXI.Color({h: 0, s: 0, v: perc * 100}).toNumber();
+            // }
+            piece.tint = lerpHexColor(startTint, pieceTarget, delta * colorShiftSpeed);
             if (piece.alpha < 1) {
                 piece.alpha = lerp(piece.alpha, 0, delta * 0.1, 0.005);
             }
         }
         this.zIndex = targetZIndex;
 
+        let targetIconColor = this.targetIconColor;
         this.icon.color.setDark(
-            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
-            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005),
-            lerp(this.icon.color.darkR, this.targetIconColor.red, delta * colorShiftSpeed, 0.005)
+            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005)
         );
+        this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, delta * colorShiftSpeed, 0.005);
 
         if (this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
@@ -355,13 +372,27 @@ export class HexRenderer extends Container {
         this.targetZIndex = zIndex;
 
         this.targetBorderColor = lineColor;
-        this.targetIconColor.setValue(this.active ? 0xffffff : 0x000000);
+
+        let targetIconColor;
+        if (this.active) {
+            targetIconColor = 0xffffff;
+        } else if (this.unlocked) {
+            targetIconColor = 0x000000;
+        } else {
+            targetIconColor = 0x000000;
+        }
+        this.targetIconColor.setValue(targetIconColor);
+        this.targetIconColor.setAlpha(this.unlocked ? 0.85 : 1);
         this.targetScale = this.active ? 1.08 : 1;
 
         if (hovering) {
             this.targetHexColor = 0xeeeeee;
+        } else if (this.unlocked) {
+            this.targetHexColor = 0xeeeeee;
+        } else if (this.active) {
+            this.targetHexColor = 0xffffff;
         } else {
-            this.targetHexColor = active ? 0xffffff : 0x888888;
+            this.targetHexColor = 0x888888;
         }
 
         this.updateBorder();
