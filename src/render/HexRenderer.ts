@@ -379,6 +379,18 @@ export class HexRenderer extends Container {
             Direction.NW,
             Direction.NE,
         ]
+
+        if (this.renderer.invertAxes) {
+            order = [
+                Direction.E,
+                Direction.NE,
+                Direction.NW,
+                Direction.W,
+                Direction.SW,
+                Direction.SE,
+            ]
+        }
+
         let neighbors = this.tile.getNeighbors(true);
         for (let dir of order) {
             let piece = this.borderPieces[index];
