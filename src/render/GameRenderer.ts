@@ -40,6 +40,7 @@ export class GameRenderer {
     stonesIndicator: Indicator;
     stonePiecesIndicator: Indicator;
     shareButton: Button;
+    hintButton: Button;
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
 
@@ -54,8 +55,10 @@ export class GameRenderer {
 
     private readonly updater: Updater = new Updater();
 
+    // 0-indexed, so 0 moves out is next
+    readonly maxHintMovesOut = 2;
     private hintHex: HexRenderer;
-
+    private hintMovesOut = this.maxHintMovesOut;
 
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
@@ -164,7 +167,7 @@ export class GameRenderer {
 
     clearActiveTiles() {
         this.activatedTiles.clear();
-        if (this.hintHex) this.hintHex.showingIndicator = false;
+        this.clearHints();
         this.refresh();
     }
 
@@ -353,7 +356,8 @@ export class GameRenderer {
             this.onShare.emit();
         });
 
-        let hintButton = new Button('img/hint.png', this.updater);
+        // TODO: Need some sort of indicator of how far out the hint is
+        let hintButton = this.hintButton = new Button('img/hint.png', this.updater);
         this.mainContainer.addChild(hintButton);
         hintButton.x = padding;
         hintButton.y = padding * 2 + iconSize;
@@ -365,13 +369,37 @@ export class GameRenderer {
     }
 
     showHint() {
-        this.hintHex = this.gridRenderer.hexes
+        if (this.hintMovesOut < 0) return;
+
+        // Find all hexes that can show a hint, sorted by ideal order
+        let hintable = this.gridRenderer.hexes
         .filter(h => !h.tile.unlocked && !h.isHidden() && h.hasGroup)
         .sort((a, b) => {
             return a.tile.groupIndex - b.tile.groupIndex;
-        })[0];
-        if (!this.hintHex) return;
+        });
+        // Get their group indexes
+        let hintableGroups = hintable.map(h => h.tile.groupIndex)
+            .filter((value, index, self) => self.indexOf(value) === index);
+        if (hintableGroups.length === 0) return;
+
+        // In case we're near the end of the game, make sure we can hint as far out as desired
+        while (this.hintMovesOut >= hintableGroups.length) this.hintMovesOut--;
+        let hintGroupIndex = hintableGroups[this.hintMovesOut];
+
+        let priorHintHex = this.hintHex;
+        // Hint the first hex in the hint group
+        this.hintHex = hintable.filter(h => h.tile.groupIndex === hintGroupIndex)[0];
+        this.hintMovesOut--;
+        if (!this.hintHex) return; // This should never happen, but just in case
+
+        // Remove the prior hint and show the new one
+        if (priorHintHex) priorHintHex.showingIndicator = false;
         this.hintHex.showingIndicator = true;
+    }
+
+    clearHints() {
+        if (this.hintHex) this.hintHex.showingIndicator = false;
+        this.hintMovesOut = this.maxHintMovesOut;
     }
 
     update(delta: number) {
