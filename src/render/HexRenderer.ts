@@ -51,6 +51,10 @@ export class HexRenderer extends Container {
         this.gridRenderer.setIndicatorShowing(this, showing);
     }
 
+    get hasGroup() : boolean {
+        return this.tile.hasGroup;
+    }
+
     constructor(tile: Tile, gridRenderer: GridRenderer) {
         super();
         this.gridRenderer = gridRenderer;
@@ -83,7 +87,7 @@ export class HexRenderer extends Container {
 
     createIcon() {
         let texture = null;
-        if (this.tile.groupIndex !== undefined) {
+        if (this.hasGroup) {
             let path = this.renderer.iconPathForGroupIndex(this.tile.groupIndex);
             texture = PIXI.Texture.from(path);
         }
@@ -208,9 +212,9 @@ export class HexRenderer extends Container {
             this.borderPieces.push(piece);
             let startCorner = translatedCorners[i % 6];
             let endCorner = translatedCorners[(i + 1) % 6];
-            if (this.tile.groupIndex == 0) {
-                console.log(i, startCorner, endCorner);
-            }
+            // if (this.tile.groupIndex == 0) {
+            //     console.log(i, startCorner, endCorner);
+            // }
             piece.moveTo(startCorner.x, startCorner.y);
             piece.lineTextureStyle({cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND, width: 3, color: 0xffffff})
             // piece.lineStyle(3, 0xffffff);

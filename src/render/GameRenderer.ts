@@ -12,6 +12,8 @@ import { Event } from '../util/Event';
 import { Action, Updater } from '../util/Updater';
 import { lerp } from '../util/MathUtil';
 import { Indicator } from './Indicator';
+import { Button } from './Button';
+import { HexRenderer } from './HexRenderer';
 
 export class GameRenderer {
 
@@ -22,6 +24,7 @@ export class GameRenderer {
     readonly isTutorial: boolean;
 
     readonly onHoverChanged = new Event<number>();
+    readonly onResized = new Event<void>();
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
@@ -33,9 +36,10 @@ export class GameRenderer {
 
     stoneRenderers: PIXI.Graphics[];
     stonePieceRenderers: PIXI.Graphics[];
+    stonePiecesOutline: PIXI.Graphics;
     stonesIndicator: Indicator;
     stonePiecesIndicator: Indicator;
-    shareIcon: SpriteH;
+    shareButton: Button;
     hexContainer: PIXI.Container;
     mainContainer: PIXI.Container;
 
@@ -49,6 +53,8 @@ export class GameRenderer {
     readonly onShare = new Event<void>();
 
     private readonly updater: Updater = new Updater();
+
+    private hintHex: HexRenderer;
 
 
 
@@ -66,13 +72,9 @@ export class GameRenderer {
 
         window.addEventListener('resize', () => {
             setTimeout(() => {
-                if (this.isTutorial) {
-                    this.multitouch.resetTransform();
-                    this.tutorialRenderer.updateShowing([]);
-                    this.resizeTutorialText();
-                } else {
-                    this.multitouch.resetTransform();
-                }
+                this.resizeTutorialText();
+                this.positionStones();
+                this.onResized.emit();
             });
         });
 
@@ -162,6 +164,7 @@ export class GameRenderer {
 
     clearActiveTiles() {
         this.activatedTiles.clear();
+        if (this.hintHex) this.hintHex.showingIndicator = false;
         this.refresh();
     }
 
@@ -235,6 +238,31 @@ export class GameRenderer {
         this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
     }
 
+    private readonly stoneRadius = 15;
+    positionStones() {
+        let radius = this.stoneRadius;
+        let xPadding = radius * 1.5;
+        let height = this.app.screen.height - this.stoneRadius * 1.5;
+        this.stoneRenderers.forEach((sprite, i) => {
+            sprite.x = xPadding + (i + 1) * this.stoneRadius * 2.5;
+            sprite.y = height;
+        });
+        this.stonesIndicator.x = (this.stoneRenderers[0].x + this.stoneRenderers[1].x) / 2;
+        this.stonesIndicator.y = height;
+        this.stonesIndicator.zIndex = 100;
+
+        this.stonePieceRenderers.forEach((sprite, i) => {
+            sprite.x = xPadding;
+            sprite.y = height;
+        });
+        this.stonePiecesIndicator.x = xPadding;
+        this.stonePiecesIndicator.y = height;
+        this.stonePiecesIndicator.zIndex = 100;
+
+        this.stonePiecesOutline.x = xPadding;
+        this.stonePiecesOutline.y = height;
+    }
+
     start() {
         this.app.ticker.add(delta => {
             this.update(delta);
@@ -250,23 +278,16 @@ export class GameRenderer {
         // this.gridRenderer.graphics.x = this.app.screen.width / 2;
         // this.gridRenderer.graphics.y = this.app.screen.height / 2;
 
-        let radius = 10;
-        let xPadding = 5 + radius;
-        let height = this.app.screen.height - 10 * 2;
+        let radius = this.stoneRadius;
         this.stoneRenderers = Array.from(new Array(LevelGenerator.maxStones).keys()).map(i => {
             let sprite = new PIXI.Graphics();
             sprite.beginFill(0xffffff);
             sprite.drawCircle(0, 0, radius);
             sprite.endFill();
-            sprite.x = xPadding + (i + 1) * 25;
-            sprite.y = height;
             this.mainContainer.addChild(sprite);
             return sprite;
         });
         this.stonesIndicator = new Indicator(radius * 2 * 2 * 1.5, 4);
-        this.stonesIndicator.x = (this.stoneRenderers[0].x + this.stoneRenderers[1].x) / 2;
-        this.stonesIndicator.y = height;
-        this.stonesIndicator.zIndex = 100;
         this.stonesIndicator.showing = false;
         this.mainContainer.addChild(this.stonesIndicator);
 
@@ -279,25 +300,20 @@ export class GameRenderer {
             // sprite.drawCircle(0, 0, radius);
             sprite.endFill();
 
-            sprite.x = xPadding;
-            sprite.y = height;
             this.mainContainer.addChild(sprite);
             return sprite;
         });
         this.stonePiecesIndicator = new Indicator(radius * 2 * 1.5, 4);
-        this.stonePiecesIndicator.x = xPadding;
-        this.stonePiecesIndicator.y = height;
-        this.stonePiecesIndicator.zIndex = 100;
         this.stonePiecesIndicator.showing = false;
         this.mainContainer.addChild(this.stonePiecesIndicator);
 
-        let sprite = new PIXI.Graphics();
+        let sprite = this.stonePiecesOutline = new PIXI.Graphics();
         sprite.lineStyle({width: 2, color: 0xffffff});
         sprite.moveTo(0, 0);
         sprite.drawCircle(0, 0, radius);
-        sprite.x = xPadding;
-        sprite.y = height;
         this.mainContainer.addChild(sprite);
+
+        this.positionStones();
         this.updateStones();
 
         if (this.isTutorial) {
@@ -323,37 +339,39 @@ export class GameRenderer {
 
         this.stepTutorial();
 
-        this.shareIcon = new SpriteH(PIXI.Texture.from('img/share.png'));
-        this.mainContainer.addChild(this.shareIcon);
-        // Position in bottom-right corner
+        const iconSize = 35;
+        const padding = iconSize / 2;
 
-        this.shareIcon.color.setDark(0.7, 0.7, 0.7);
-        this.shareIcon.anchor.set(0, 0);
-        this.shareIcon.x = 10;
-        this.shareIcon.y = 10;
-        this.shareIcon.width = 25;
-        this.shareIcon.height = 25;
-        this.shareIcon.interactive = true;
-        this.shareIcon.on('click', () => {
+        this.shareButton = new Button('img/share.png', this.updater);
+        this.mainContainer.addChild(this.shareButton);
+        this.shareButton.x = padding;
+        this.shareButton.y = padding;
+        this.shareButton.icon.width = iconSize;
+        this.shareButton.icon.height = iconSize;
+        this.shareButton.visible = !this.isTutorial;
+        this.shareButton.onClicked.addHandler(() => {
             this.onShare.emit();
         });
-        this.shareIcon.on('mouseover', () => {
-            this.updater.run(() => {
-                let dark = this.shareIcon.color.dark[0];
-                dark = lerp(dark, 1, 0.2, 0.01);
-                this.shareIcon.color.setDark(dark, dark, dark);
-                return dark < 1;
-            }).unique('shareIconHover', true);
+
+        let hintButton = new Button('img/hint.png', this.updater);
+        this.mainContainer.addChild(hintButton);
+        hintButton.x = padding;
+        hintButton.y = padding * 2 + iconSize;
+        hintButton.icon.width = iconSize;
+        hintButton.icon.height = iconSize;
+        hintButton.onClicked.addHandler(() => {
+            this.showHint();
         });
-        this.shareIcon.on('mouseout', () => {
-            this.updater.run(() => {
-                let dark = this.shareIcon.color.dark[0];
-                dark = lerp(dark, 0.7, 0.2, 0.01);
-                this.shareIcon.color.setDark(dark, dark, dark);
-                return dark > 0.7;
-            }).unique('shareIconHover', true);
-        });
-        this.shareIcon.visible = !this.isTutorial;
+    }
+
+    showHint() {
+        this.hintHex = this.gridRenderer.hexes
+        .filter(h => !h.tile.unlocked && !h.isHidden() && h.hasGroup)
+        .sort((a, b) => {
+            return a.tile.groupIndex - b.tile.groupIndex;
+        })[0];
+        if (!this.hintHex) return;
+        this.hintHex.showingIndicator = true;
     }
 
     update(delta: number) {

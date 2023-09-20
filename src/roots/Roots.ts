@@ -130,7 +130,7 @@ export class Roots {
         }));
 
         let activeGroupIndices = [...activeTiles.keys()].map(tile => tile.groupIndex);
-        activeGroupIndices = activeGroupIndices.filter(groupIndex => groupIndex !== undefined);
+        activeGroupIndices = activeGroupIndices.filter(groupIndex => groupIndex != undefined);
         // remove duplicates
         activeGroupIndices = activeGroupIndices.filter((value, index, self) => self.indexOf(value) === index);
         if (activeGroupIndices.length === 0) return;

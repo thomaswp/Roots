@@ -66,6 +66,9 @@ export class Multitouch {
         this.height = height;
 
         this.resetTransform();
+        renderer.onResized.addHandler(() => {
+            this.resetTransform();
+        }, true);
 
 
         // this.scaleViewport.scale.x = this.scaleViewport.scale.y = 2;

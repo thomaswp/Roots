@@ -2,8 +2,12 @@ export class Event<Args> {
     
     private handlers: ((args: Args) => void)[] = [];
 
-    addHandler(handler: (args: Args) => void) {
-        this.handlers.push(handler);
+    addHandler(handler: (args: Args) => void, priority = false) {
+        if (priority) {
+            this.handlers.unshift(handler);
+        } else {
+            this.handlers.push(handler);
+        }
     }
 
     removeHandler(handler: (args: Args) => void) {

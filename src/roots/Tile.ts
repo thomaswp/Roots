@@ -24,6 +24,10 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
     groupCount: number;
     game: Roots;
 
+    get hasGroup() {
+        return this.groupIndex != undefined;
+    }
+
     serialize(): TileData {
         return {
             unlocked: this.unlocked,
