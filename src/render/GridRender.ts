@@ -1,4 +1,4 @@
-import { Grid } from "honeycomb-grid";
+import { Grid, Orientation, defineHex, rectangle } from "honeycomb-grid";
 import { Tile, tileSize } from "../roots/Tile";
 import * as PIXI from "pixi.js";
 import { Container } from "pixi.js";
@@ -35,17 +35,50 @@ export class GridRenderer {
         this.container.y = -this.height / 2;
 
         this.renderer.backgroundTexture.on('update', (e) => {
-            this.setTileBackgroundColors();
+            // this.setTileBackgroundColors();
+            this.createMiniTileBackground();
         });
     }
 
-    setTileBackgroundColors() {
+    createMiniTileBackground() {
+        // Why doesn't this work with 3?
+        let scale = 2;
+
+        let hexScale = 2 / Math.sqrt(3) / scale;
+
+        let gridWidth = Math.round(this.renderer.game.width * scale) - scale; // - 4 * scale;
+        let gridHeight = this.renderer.game.height * scale / 2 * 1.5 - scale; // - 1 * scale;
+
+        const baseTile = this.hexes[0].tile;
+        const CustomHex = defineHex({
+            dimensions: baseTile.dimensions.xRadius * hexScale,
+            orientation: Orientation.FLAT,
+            // orientation: Orientation.POINTY,
+            origin: baseTile.origin,
+            offset: baseTile.offset
+        });
+        let grid = new Grid(CustomHex, rectangle({ width: gridWidth, height: gridHeight }));
+
+        let graphics = new PIXI.Graphics();
+
+
+        let colorArray = this.getScaledColorArray(gridWidth, gridHeight);
+        let gridArray = grid.toArray();
+        colorArray.forEach((color, index) => {
+            let hex = gridArray[index];
+            let points = hex.corners;
+            graphics.beginFill(color.toNumber());
+            graphics.drawPolygon(points);
+            graphics.endFill();
+        });
+
+        graphics.zIndex = -100;
+        this.container.addChild(graphics);
+    }
+
+    getScaledColorArray(width: number, height: number) {
         let resource = this.renderer.backgroundTexture.baseTexture.resource;
         let image = resource["source"] as HTMLImageElement;
-        console.log(image);
-
-        let width = this.renderer.game.width;
-        let height = this.renderer.game.height;
 
         let canvas = document.createElement('canvas');
         // TODO: handle reversed axes
@@ -56,6 +89,7 @@ export class GridRenderer {
         let imageData = ctx.getImageData(0, 0, width, height);
         let data = imageData.data;
 
+        let colors = [] as PIXI.Color[];
         for (let i = 0; i < data.length; i += 4) {
             let r = data[i];
             let g = data[i + 1];
@@ -63,10 +97,36 @@ export class GridRenderer {
             // let a = data[i + 3];
             let hex = this.hexes[i / 4];
             let color = new PIXI.Color({r: r, g: g, b: b});
-            console.log(color);
+            colors.push(color);
+        }
+        return colors;
+    }
+
+    setTileBackgroundColors() {
+        let resource = this.renderer.backgroundTexture.baseTexture.resource;
+        let image = resource["source"] as HTMLImageElement;
+
+        let gridWidth = this.renderer.game.width;
+        let gridHeight = this.renderer.game.height;
+        
+        // Attempt at triangles... unsuccessfull because width/height
+        // would be different scales
+        // for (let i = 0; i < gridWidth; i++) {
+        //     for (let j = 0; j < gridHeight; j++) {
+        //         let index = i + j * gridWidth;
+
+        //         let offset = j % 2 == 0 ? 0 : 1;
+        //         let col1 = offset + i * 2;
+        //         let col2 = col1 + 1;
+        //     }
+        // }
+
+        let colorArray = this.getScaledColorArray(gridWidth, gridHeight);
+        colorArray.forEach((color, index) => {
+            let hex = this.hexes[index];
             hex.backgroundColor = color;
             hex.refresh();
-        }
+        });
     }
 
     getHexForTile(tile: Tile) {

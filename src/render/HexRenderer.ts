@@ -309,6 +309,9 @@ export class HexRenderer extends Container {
         );
         this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, delta * colorShiftSpeed, 0.005);
 
+        this.hex.alpha = lerp(this.hex.alpha, this.unlocked ? 0 : 1, delta * 0.1, 0.005);
+        // this.hex.alpha = 0;
+
         if (this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
         }

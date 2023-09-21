@@ -38,8 +38,8 @@ export class GameRenderer {
     private stoneRenderers: PIXI.Graphics[];
     private stonePieceRenderers: PIXI.Graphics[];
     private stonePiecesOutline: PIXI.Graphics;
-    private stonesIndicator: Indicator;
-    private stonePiecesIndicator: Indicator;
+    stonesIndicator: Indicator;
+    stonePiecesIndicator: Indicator;
     private shareButton: Button;
     private hintButton: Button;
     private hexContainer: PIXI.Container;
