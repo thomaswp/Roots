@@ -40,7 +40,7 @@ export class Roots {
     loadProgress = 0;
 
     readonly onNeedSave = new Event<GameData>();
-    readonly onTilesActivated = new Event<Tile[]>();
+    readonly onTilesUnlocked = new Event<Tile[]>();
 
 
     constructor(seed: string) {
@@ -152,16 +152,18 @@ export class Roots {
                 return clusterIndex === testClustering.getClusterIndex(tile.id);
             })) continue;
             
-            this.unlockTiles(group);
+            group = this.unlockTiles(group);
             // console.log('unlocked group ' + groupIndex);
 
-            this.onTilesActivated.emit(group);
+            this.onTilesUnlocked.emit(group);
             return true;
         }
         return false;
     }
 
     unlockTiles(group: Tile[]) {
+        let unlocked = group.slice();
+
         // First mark all as unlocked
         group.forEach(tile => {
             tile.unlocked = true;
@@ -177,7 +179,20 @@ export class Roots {
                 this.nStones++;
             }
         }
+        
+        // Also unlock non-group tiles whose neighbors are all unlocked
+        this.grid.toArray().forEach(tile => {
+            if (tile.hasGroup) return;
+            if (tile.unlocked) return;
+            let borderingGroupTiles = tile.getBorderingGroupTiles();
+            if ([...borderingGroupTiles].every(tile => tile.unlocked)) {
+                tile.unlocked = true;
+                unlocked.push(tile);
+            }
+        });
+
         this.save();
+        return unlocked;
     }
 
     // clearActive(restoreActive: boolean) {

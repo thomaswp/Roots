@@ -394,12 +394,12 @@ export class GameRenderer {
 
         if (cheat) {
             hintGroupIndex = hintableGroups[0];
-            this.game.unlockTiles(
-                hintable
-                .filter(h => h.tile.groupIndex === hintGroupIndex)
-                .map(h => h.tile)
-            );
+            let toUnlock = hintable
+            .filter(h => h.tile.groupIndex === hintGroupIndex)
+            .map(h => h.tile);
+            toUnlock = this.game.unlockTiles(toUnlock);
             this.refresh();
+            this.game.onTilesUnlocked.emit(toUnlock);
             return;
         }
 
