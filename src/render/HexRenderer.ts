@@ -12,6 +12,7 @@ export class HexRenderer extends Container {
     readonly gridRenderer: GridRenderer;
     
     hovering = false;
+    backgroundColor: PIXI.Color;
 
     private icon: SpriteH;
     private hex: PIXI.Graphics;
@@ -193,14 +194,9 @@ export class HexRenderer extends Container {
         //     return {x: c.x * inset, y: c.y * inset};
         // });
 
-        let color = this.getGroupColor();
-        if (this.tile.isStoneTile) {
-            color = new PIXI.Color(0xaaaaaa);
-        }
-
         let hex = this.hex = new PIXI.Graphics();
         hex.clear();
-        hex.beginFill(color);
+        hex.beginFill(0xffffff);
         hex.drawPolygon(translatedCorners);
         hex.endFill();
         this.addChild(hex);
@@ -327,6 +323,14 @@ export class HexRenderer extends Container {
         return this.gridRenderer.renderer.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
     }
 
+    getHexColor() : PIXI.Color {
+        let color = new PIXI.Color(this.getGroupColor());
+        if (this.tile.isStoneTile) {
+            color.setValue(0xaaaaaa);
+        }
+        return color;
+    }
+
 
     refresh() {
         let tile = this.tile;
@@ -389,15 +393,18 @@ export class HexRenderer extends Container {
         this.targetIconColor.setAlpha(this.unlocked ? 0.85 : 1);
         this.targetScale = this.active ? 1.08 : 1;
 
-        if (hovering) {
-            this.targetHexColor = 0xeeeeee;
-        } else if (this.unlocked) {
-            this.targetHexColor = 0xeeeeee;
-        } else if (this.active) {
-            this.targetHexColor = 0xffffff;
-        } else {
-            this.targetHexColor = 0x888888;
+        let hexColor = this.getHexColor();
+        if (this.backgroundColor && this.unlocked) {
+            hexColor.setValue(this.backgroundColor);
         }
+        if (hovering) {
+            hexColor.multiply(0xeeeeee);
+        } else if (this.unlocked) {
+            hexColor.multiply(0xeeeeee);
+        } else {
+            hexColor.multiply(0x888888);
+        }
+        this.targetHexColor = hexColor.toNumber();
 
         this.updateBorder();
     }

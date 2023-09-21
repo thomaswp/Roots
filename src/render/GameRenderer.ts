@@ -25,6 +25,7 @@ export class GameRenderer {
 
     readonly onHoverChanged = new Event<number>();
     readonly onResized = new Event<void>();
+    readonly onShare = new Event<void>();
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
@@ -34,24 +35,25 @@ export class GameRenderer {
     groupColors: PIXI.Color[];
     playerColors: PIXI.Color[];
 
-    stoneRenderers: PIXI.Graphics[];
-    stonePieceRenderers: PIXI.Graphics[];
-    stonePiecesOutline: PIXI.Graphics;
-    stonesIndicator: Indicator;
-    stonePiecesIndicator: Indicator;
-    shareButton: Button;
-    hintButton: Button;
-    hexContainer: PIXI.Container;
-    mainContainer: PIXI.Container;
+    private stoneRenderers: PIXI.Graphics[];
+    private stonePieceRenderers: PIXI.Graphics[];
+    private stonePiecesOutline: PIXI.Graphics;
+    private stonesIndicator: Indicator;
+    private stonePiecesIndicator: Indicator;
+    private shareButton: Button;
+    private hintButton: Button;
+    private hexContainer: PIXI.Container;
+    private mainContainer: PIXI.Container;
 
-    tutorialText: PIXI.Text;
+    private tutorialText: PIXI.Text;
 
-    activatedTiles = new Set<Tile>();
+    readonly backgroundTexture: PIXI.Texture;
 
-    invertAxes: boolean = false;
+    readonly activatedTiles = new Set<Tile>();
+
+    readonly invertAxes: boolean = false;
     autoSelectGroup: boolean = true;
 
-    readonly onShare = new Event<void>();
 
     private readonly updater: Updater = new Updater();
 
@@ -86,6 +88,9 @@ export class GameRenderer {
             e.preventDefault();
             this.clearActiveTiles();
         }
+
+        this.backgroundTexture = PIXI.Texture.from('img/backgrounds/serval.png');
+        // new PIXI.Sprite(this.backgroundTexture).on
     }
 
     get activeTileCount() : number {

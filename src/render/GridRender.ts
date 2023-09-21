@@ -33,6 +33,40 @@ export class GridRenderer {
         }
         this.container.x = -this.width / 2;
         this.container.y = -this.height / 2;
+
+        this.renderer.backgroundTexture.on('update', (e) => {
+            this.setTileBackgroundColors();
+        });
+    }
+
+    setTileBackgroundColors() {
+        let resource = this.renderer.backgroundTexture.baseTexture.resource;
+        let image = resource["source"] as HTMLImageElement;
+        console.log(image);
+
+        let width = this.renderer.game.width;
+        let height = this.renderer.game.height;
+
+        let canvas = document.createElement('canvas');
+        // TODO: handle reversed axes
+        canvas.width = width;
+        canvas.height = height;
+        let ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, width, height);
+        let imageData = ctx.getImageData(0, 0, width, height);
+        let data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            // let a = data[i + 3];
+            let hex = this.hexes[i / 4];
+            let color = new PIXI.Color({r: r, g: g, b: b});
+            console.log(color);
+            hex.backgroundColor = color;
+            hex.refresh();
+        }
     }
 
     getHexForTile(tile: Tile) {
