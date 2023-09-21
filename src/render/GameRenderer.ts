@@ -65,7 +65,8 @@ export class GameRenderer {
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
         this.app = app;
-        this.invertAxes = app.view.width < app.view.height;
+        // TODO: support vertical orientation
+        this.invertAxes = false; // app.view.width < app.view.height;
         this.game = game;
         this.isTutorial = isTutorial;
         this.hexContainer = new PIXI.Container();
@@ -368,12 +369,12 @@ export class GameRenderer {
         hintButton.y = padding * 2 + iconSize;
         hintButton.icon.width = iconSize;
         hintButton.icon.height = iconSize;
-        hintButton.onClicked.addHandler(() => {
-            this.showHint();
+        hintButton.onClicked.addHandler((e) => {
+            this.showHint(e.shiftKey && e.ctrlKey);
         });
     }
 
-    showHint() {
+    showHint(cheat = false) {
         if (this.hintMovesOut < 0) return;
 
         // Find all hexes that can show a hint, sorted by ideal order
@@ -390,6 +391,17 @@ export class GameRenderer {
         // In case we're near the end of the game, make sure we can hint as far out as desired
         while (this.hintMovesOut >= hintableGroups.length) this.hintMovesOut--;
         let hintGroupIndex = hintableGroups[this.hintMovesOut];
+
+        if (cheat) {
+            hintGroupIndex = hintableGroups[0];
+            this.game.unlockTiles(
+                hintable
+                .filter(h => h.tile.groupIndex === hintGroupIndex)
+                .map(h => h.tile)
+            );
+            this.refresh();
+            return;
+        }
 
         let priorHintHex = this.hintHex;
         // Hint the first hex in the hint group

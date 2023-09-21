@@ -5,6 +5,7 @@ import { Container } from "pixi.js";
 import { GameRenderer } from "./GameRenderer";
 import { HexRenderer } from "./HexRenderer";
 import { Indicator } from "./Indicator";
+import { lerp } from "../util/MathUtil";
 
 export class GridRenderer {
 
@@ -20,6 +21,8 @@ export class GridRenderer {
 
     private indicators: Map<HexRenderer, Indicator> = new Map();
 
+    private readonly backgrounds = [] as PIXI.Graphics[];
+
     constructor(renderer: GameRenderer, grid: Grid<Tile>) {
         this.grid = grid;
         this.renderer = renderer;
@@ -34,20 +37,25 @@ export class GridRenderer {
         this.container.x = -this.width / 2;
         this.container.y = -this.height / 2;
 
+        let loaded = false;
         this.renderer.backgroundTexture.on('update', (e) => {
-            // this.setTileBackgroundColors();
-            this.createMiniTileBackground();
+            if (loaded) return;
+            loaded = true;
+            this.setTileBackgroundColors();
+            for (let i = 1; i <= 3; i++) {
+                this.backgrounds.push(this.createMiniTileBackground(i));
+            }
         });
     }
 
-    createMiniTileBackground() {
-        // Why doesn't this work with 3?
-        let scale = 2;
+    createMiniTileBackground(power: number) {
+        // Works best with power of 2
+        let scale = Math.round(Math.pow(2, power));
 
         let hexScale = 2 / Math.sqrt(3) / scale;
 
-        let gridWidth = Math.round(this.renderer.game.width * scale) - scale; // - 4 * scale;
-        let gridHeight = this.renderer.game.height * scale / 2 * 1.5 - scale; // - 1 * scale;
+        let gridWidth = Math.round(this.renderer.game.width * scale) + 1 * scale;
+        let gridHeight = this.renderer.game.height * scale / 2 * 1.5 + 1 * scale; // - 1 * scale;
 
         const baseTile = this.hexes[0].tile;
         const CustomHex = defineHex({
@@ -67,12 +75,49 @@ export class GridRenderer {
         colorArray.forEach((color, index) => {
             let hex = gridArray[index];
             let points = hex.corners;
+            // graphics.lineStyle(1, 0x888888);
             graphics.beginFill(color.toNumber());
             graphics.drawPolygon(points);
             graphics.endFill();
         });
 
+        graphics.x -= baseTile.dimensions.xRadius * Math.sqrt(3) / 2;
+        graphics.y -= baseTile.dimensions.xRadius * 1.5;
+
+        graphics.zIndex = -100 - power;
+        this.container.addChild(graphics);
+        return graphics;
+    }
+
+    createBorder() {
+        let grid = new Grid(Tile, rectangle({ width: this.renderer.game.width + 2, height: this.renderer.game.height + 3 }));
+
+
+        let graphics = new PIXI.Graphics();
+
+        const baseTile = this.hexes[0].tile;
+        let radius = baseTile.dimensions.xRadius;
+        let offX = -radius * Math.sqrt(3) * 0.5 * 2;
+        let offY = -radius * 1.5 * 2;
+
+        // TODO: Handle inverted axes
+        grid.toArray().forEach(tile => {
+            let points = tile.corners;
+            let center = tile.center;
+            let x = -center.x + offX;
+            let y = -center.y + offY;
+            if (x > -radius / 2 && x <= this.width - radius * 2) {
+                if (y > -radius / 2 * 2 && y <= this.height - radius * 2) return;
+            };
+            graphics.beginFill(0x000000);
+            graphics.drawPolygon(points);
+            graphics.endFill();
+        });
+
         graphics.zIndex = -100;
+        graphics.x = offX;
+        graphics.y = offY;
+
         this.container.addChild(graphics);
     }
 
@@ -155,6 +200,7 @@ export class GridRenderer {
             this.hexes.push(hexRenderer);
             this.container.addChild(hexRenderer);
         });
+        this.createBorder();
     }
 
     refresh() {
@@ -197,6 +243,13 @@ export class GridRenderer {
         this.indicators.forEach(indicator => {
             indicator.update(delta);
         });
+        let showingBGIndex = this.renderer.game.nStones - 3;
+        for (let i = 0; i < this.backgrounds.length - 1; i++) {
+            let background = this.backgrounds[i];
+            let hide = i < showingBGIndex;
+            background.alpha = lerp(background.alpha, hide ? 0 : 1, 0.01, 0.01);
+        }
+
     }
 
 }

@@ -8,7 +8,7 @@ export class Button extends PIXI.Container {
 
     static nextID = 0;
 
-    readonly onClicked = new Event<void>();
+    readonly onClicked = new Event<PIXI.FederatedPointerEvent>();
     readonly icon: SpriteH;
 
     private id = Button.nextID++;
@@ -21,8 +21,8 @@ export class Button extends PIXI.Container {
         this.icon.color.setDark(0.7, 0.7, 0.7);
         this.icon.anchor.set(0, 0);
         this.icon.interactive = true;
-        this.icon.on('click', () => {
-            this.onClicked.emit();
+        this.icon.on('click', (e) => {
+            this.onClicked.emit(e);
         });
 
         let uniqueName = 'buttonHover' + this.id;
