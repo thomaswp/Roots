@@ -243,6 +243,7 @@ export class GridRenderer {
         this.indicators.forEach(indicator => {
             indicator.update(delta);
         });
+        // TODO: Should hide all BGs while there are 2 stones
         let showingBGIndex = this.renderer.game.nStones - 3;
         for (let i = 0; i < this.backgrounds.length - 1; i++) {
             let background = this.backgrounds[i];

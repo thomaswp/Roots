@@ -1,5 +1,10 @@
 Stones should move when window is resized (and maybe be bigger for mobile)
 
+Bugs:
+* White background on error click
+* Hidden tiles shouldn't show icon when activated in tutorial
+* Vertical orientation not working now
+
 Plans: 
 * Make a hint button
 * Visually distinguish activation from unlock

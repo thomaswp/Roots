@@ -80,9 +80,9 @@ export class HexRenderer extends Container {
 
     setHidden(hidden: boolean) {
         // Fade in when unhiding
-        if (!hidden && this.hidden) this.alpha = 0;
+        // if (!hidden && this.hidden) this.alpha = 0;
         this.hidden = hidden;
-        this.icon.alpha = this.hex.alpha = this.hidden ? 0 : 1;
+        // this.icon.alpha = this.hidden ? 0 : 1;
         this.refresh();
     }
 
@@ -309,9 +309,12 @@ export class HexRenderer extends Container {
         );
         this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, delta * colorShiftSpeed, 0.005);
 
-        let hideHex = this.unlocked && this.renderer.game.nStones > 2 && this.flipValue <= 0;
-        this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, delta * 0.1, 0.005);
-        // this.hex.alpha = 0;
+        if (this.hidden) {
+            this.hex.alpha = 1;
+        } else {
+            let hideHex = this.unlocked && this.renderer.game.nStones > 2 && this.flipValue <= 0;
+            this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, delta * 0.1, 0.005);
+        }
 
         if (this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
@@ -358,7 +361,7 @@ export class HexRenderer extends Container {
         if (tile.unlocked) {
             // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb);
             // lineColor = 0xeeeeee;
-            lineColor = 0x763B00;
+            lineColor = 0x965B00;
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
         } else if (this.active) {
@@ -402,7 +405,9 @@ export class HexRenderer extends Container {
         if (this.backgroundColor && this.unlocked && this.renderer.game.nStones == 2) {
             hexColor.setValue(this.backgroundColor);
         }
-        if (hovering || active) {
+        if (this.hidden) {
+            hexColor.setValue(0x000000);
+        } else if (hovering || active) {
             hexColor.multiply(0xeeeeee);
         } else if (this.unlocked) {
             hexColor.multiply(0xeeeeee);
