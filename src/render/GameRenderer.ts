@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Roots } from '../roots/Roots';
 import { GridRenderer } from './GridRender';
-import { animalIcons } from './Animals';
+import { animalIcons, landscapeBackgrounds } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
@@ -47,7 +47,7 @@ export class GameRenderer {
 
     private tutorialText: PIXI.Text;
 
-    readonly backgroundTexture: PIXI.Texture;
+    backgroundTexture: PIXI.Texture;
 
     readonly activatedTiles = new Set<Tile>();
 
@@ -89,9 +89,6 @@ export class GameRenderer {
             e.preventDefault();
             this.clearActiveTiles();
         }
-
-        this.backgroundTexture = PIXI.Texture.from('img/backgrounds/serval.png');
-        // new PIXI.Sprite(this.backgroundTexture).on
     }
 
     get activeTileCount() : number {
@@ -124,7 +121,17 @@ export class GameRenderer {
             [paths[i], paths[j]] = [paths[j], paths[i]];
         }
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
-        .map(i => paths[i % paths.length])
+        .map(i => paths[i % paths.length]);
+
+        
+        let lastGroup = this.game.grid.toArray().map(t => t.groupIndex).sort((a, b) => b - a)[0];
+        let lastAnimalIcon = this.groupAnimalPaths[lastGroup];
+        let backgrounds = landscapeBackgrounds.split('\n').filter(s => s.length > 0).map(s => s.trim());
+        let backgroundIndex = backgrounds.findIndex(s => s.replace(".jpg",".png") === lastAnimalIcon);
+        if (backgroundIndex === -1) backgroundIndex = Math.floor(rng() * backgrounds.length);
+        let background = backgrounds[backgroundIndex];
+        this.backgroundTexture = PIXI.Texture.from('img/backgrounds/landscape/' + background);
+        // new PIXI.Sprite(this.backgroundTexture).on
     }
 
 

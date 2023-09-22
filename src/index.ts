@@ -8,6 +8,9 @@ import { Network } from "./roots/Network";
 import { setUrlParam } from "./util/NavUtils";
 import tutorialLevel from "./TutorialLevel.json";
 import { LoadingRenderer } from "./render/LoadingRenderer";
+import { PexelsImageSearch } from "./gen/images";
+
+window["Pexels"] = PexelsImageSearch;
 
 window.onload = function() {
     // Create the application helper and add its render target to the page
