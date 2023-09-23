@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Roots } from '../roots/Roots';
 import { GridRenderer } from './GridRender';
-import { animalIcons } from './Animals';
+import { animalIcons, landscapeBackgrounds, portraitBackgrounds } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
@@ -12,6 +12,8 @@ import { Event } from '../util/Event';
 import { Action, Updater } from '../util/Updater';
 import { lerp } from '../util/MathUtil';
 import { Indicator } from './Indicator';
+import { Button } from './Button';
+import { HexRenderer } from './HexRenderer';
 
 export class GameRenderer {
 
@@ -22,6 +24,8 @@ export class GameRenderer {
     readonly isTutorial: boolean;
 
     readonly onHoverChanged = new Event<number>();
+    readonly onResized = new Event<void>();
+    readonly onShare = new Event<void>();
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
@@ -31,29 +35,37 @@ export class GameRenderer {
     groupColors: PIXI.Color[];
     playerColors: PIXI.Color[];
 
-    stoneRenderers: PIXI.Graphics[];
-    stonePieceRenderers: PIXI.Graphics[];
+    private stoneRenderers: PIXI.Graphics[];
+    private stonePieceRenderers: PIXI.Graphics[];
+    private stonePiecesOutline: PIXI.Graphics;
     stonesIndicator: Indicator;
     stonePiecesIndicator: Indicator;
-    shareIcon: SpriteH;
-    hexContainer: PIXI.Container;
-    mainContainer: PIXI.Container;
+    private shareButton: Button;
+    private hintButton: Button;
+    private hexContainer: PIXI.Container;
+    private mainContainer: PIXI.Container;
 
-    tutorialText: PIXI.Text;
+    private tutorialText: PIXI.Text;
 
-    activatedTiles = new Set<Tile>();
+    backgroundTexture: PIXI.Texture;
 
-    invertAxes: boolean = false;
+    readonly activatedTiles = new Set<Tile>();
+
+    readonly invertAxes: boolean = false;
     autoSelectGroup: boolean = true;
 
-    readonly onShare = new Event<void>();
 
     private readonly updater: Updater = new Updater();
 
+    // 0-indexed, so 0 moves out is next
+    readonly maxHintMovesOut = 2;
+    private hintHex: HexRenderer;
+    private hintMovesOut = this.maxHintMovesOut;
 
 
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
         this.app = app;
+        // TODO: support vertical orientation
         this.invertAxes = app.view.width < app.view.height;
         this.game = game;
         this.isTutorial = isTutorial;
@@ -66,13 +78,9 @@ export class GameRenderer {
 
         window.addEventListener('resize', () => {
             setTimeout(() => {
-                if (this.isTutorial) {
-                    this.multitouch.resetTransform();
-                    this.tutorialRenderer.updateShowing([]);
-                    this.resizeTutorialText();
-                } else {
-                    this.multitouch.resetTransform();
-                }
+                this.resizeTutorialText();
+                this.positionStones();
+                this.onResized.emit();
             });
         });
 
@@ -113,7 +121,25 @@ export class GameRenderer {
             [paths[i], paths[j]] = [paths[j], paths[i]];
         }
         this.groupAnimalPaths = Array.from(new Array(nGroups).keys())
-        .map(i => paths[i % paths.length])
+        .map(i => paths[i % paths.length]);
+
+        
+        let lastGroup = this.game.grid.toArray().map(t => t.groupIndex).sort((a, b) => b - a)[0];
+        let lastAnimalIcon = this.groupAnimalPaths[lastGroup];
+        let backgroundsString = this.invertAxes ? portraitBackgrounds : landscapeBackgrounds;
+        let backgrounds = backgroundsString.split('\n').filter(s => s.length > 0).map(s => s.trim());
+        let backgroundIndex = backgrounds.findIndex(s => s.replace(".jpg",".png") === lastAnimalIcon);
+        // If the seed is an animal, use that
+        let seedBackground = this.game.seed + ".jpg";
+        if (backgrounds.includes(seedBackground)) {
+            backgroundIndex = backgrounds.indexOf(seedBackground);
+        }
+        if (backgroundIndex === -1) backgroundIndex = Math.floor(rng() * backgrounds.length);
+        // backgroundIndex = Math.floor(Math.random() * backgrounds.length); // For testing
+        let background = backgrounds[backgroundIndex];
+        let subfolder = this.invertAxes ? 'portrait' : 'landscape';
+        this.backgroundTexture = PIXI.Texture.from(`img/backgrounds/${subfolder}/${background}`);
+        // new PIXI.Sprite(this.backgroundTexture).on
     }
 
 
@@ -162,6 +188,7 @@ export class GameRenderer {
 
     clearActiveTiles() {
         this.activatedTiles.clear();
+        this.clearHints();
         this.refresh();
     }
 
@@ -235,6 +262,31 @@ export class GameRenderer {
         this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
     }
 
+    private readonly stoneRadius = 15;
+    positionStones() {
+        let radius = this.stoneRadius;
+        let xPadding = radius * 1.5;
+        let height = this.app.screen.height - this.stoneRadius * 1.5;
+        this.stoneRenderers.forEach((sprite, i) => {
+            sprite.x = xPadding + (i + 1) * this.stoneRadius * 2.5;
+            sprite.y = height;
+        });
+        this.stonesIndicator.x = (this.stoneRenderers[0].x + this.stoneRenderers[1].x) / 2;
+        this.stonesIndicator.y = height;
+        this.stonesIndicator.zIndex = 100;
+
+        this.stonePieceRenderers.forEach((sprite, i) => {
+            sprite.x = xPadding;
+            sprite.y = height;
+        });
+        this.stonePiecesIndicator.x = xPadding;
+        this.stonePiecesIndicator.y = height;
+        this.stonePiecesIndicator.zIndex = 100;
+
+        this.stonePiecesOutline.x = xPadding;
+        this.stonePiecesOutline.y = height;
+    }
+
     start() {
         this.app.ticker.add(delta => {
             this.update(delta);
@@ -250,23 +302,16 @@ export class GameRenderer {
         // this.gridRenderer.graphics.x = this.app.screen.width / 2;
         // this.gridRenderer.graphics.y = this.app.screen.height / 2;
 
-        let radius = 10;
-        let xPadding = 5 + radius;
-        let height = this.app.screen.height - 10 * 2;
+        let radius = this.stoneRadius;
         this.stoneRenderers = Array.from(new Array(LevelGenerator.maxStones).keys()).map(i => {
             let sprite = new PIXI.Graphics();
             sprite.beginFill(0xffffff);
             sprite.drawCircle(0, 0, radius);
             sprite.endFill();
-            sprite.x = xPadding + (i + 1) * 25;
-            sprite.y = height;
             this.mainContainer.addChild(sprite);
             return sprite;
         });
         this.stonesIndicator = new Indicator(radius * 2 * 2 * 1.5, 4);
-        this.stonesIndicator.x = (this.stoneRenderers[0].x + this.stoneRenderers[1].x) / 2;
-        this.stonesIndicator.y = height;
-        this.stonesIndicator.zIndex = 100;
         this.stonesIndicator.showing = false;
         this.mainContainer.addChild(this.stonesIndicator);
 
@@ -279,25 +324,20 @@ export class GameRenderer {
             // sprite.drawCircle(0, 0, radius);
             sprite.endFill();
 
-            sprite.x = xPadding;
-            sprite.y = height;
             this.mainContainer.addChild(sprite);
             return sprite;
         });
         this.stonePiecesIndicator = new Indicator(radius * 2 * 1.5, 4);
-        this.stonePiecesIndicator.x = xPadding;
-        this.stonePiecesIndicator.y = height;
-        this.stonePiecesIndicator.zIndex = 100;
         this.stonePiecesIndicator.showing = false;
         this.mainContainer.addChild(this.stonePiecesIndicator);
 
-        let sprite = new PIXI.Graphics();
+        let sprite = this.stonePiecesOutline = new PIXI.Graphics();
         sprite.lineStyle({width: 2, color: 0xffffff});
         sprite.moveTo(0, 0);
         sprite.drawCircle(0, 0, radius);
-        sprite.x = xPadding;
-        sprite.y = height;
         this.mainContainer.addChild(sprite);
+
+        this.positionStones();
         this.updateStones();
 
         if (this.isTutorial) {
@@ -323,37 +363,75 @@ export class GameRenderer {
 
         this.stepTutorial();
 
-        this.shareIcon = new SpriteH(PIXI.Texture.from('img/share.png'));
-        this.mainContainer.addChild(this.shareIcon);
-        // Position in bottom-right corner
+        const iconSize = 35;
+        const padding = iconSize / 2;
 
-        this.shareIcon.color.setDark(0.7, 0.7, 0.7);
-        this.shareIcon.anchor.set(0, 0);
-        this.shareIcon.x = 10;
-        this.shareIcon.y = 10;
-        this.shareIcon.width = 25;
-        this.shareIcon.height = 25;
-        this.shareIcon.interactive = true;
-        this.shareIcon.on('click', () => {
+        this.shareButton = new Button('img/share.png', this.updater);
+        this.mainContainer.addChild(this.shareButton);
+        this.shareButton.x = padding;
+        this.shareButton.y = padding;
+        this.shareButton.icon.width = iconSize;
+        this.shareButton.icon.height = iconSize;
+        this.shareButton.visible = !this.isTutorial;
+        this.shareButton.onClicked.addHandler(() => {
             this.onShare.emit();
         });
-        this.shareIcon.on('mouseover', () => {
-            this.updater.run(() => {
-                let dark = this.shareIcon.color.dark[0];
-                dark = lerp(dark, 1, 0.2, 0.01);
-                this.shareIcon.color.setDark(dark, dark, dark);
-                return dark < 1;
-            }).unique('shareIconHover', true);
+
+        // TODO: Need some sort of indicator of how far out the hint is
+        let hintButton = this.hintButton = new Button('img/hint.png', this.updater);
+        this.mainContainer.addChild(hintButton);
+        hintButton.x = padding;
+        hintButton.y = padding * 2 + iconSize;
+        hintButton.icon.width = iconSize;
+        hintButton.icon.height = iconSize;
+        hintButton.onClicked.addHandler((e) => {
+            this.showHint(e.shiftKey && e.ctrlKey);
         });
-        this.shareIcon.on('mouseout', () => {
-            this.updater.run(() => {
-                let dark = this.shareIcon.color.dark[0];
-                dark = lerp(dark, 0.7, 0.2, 0.01);
-                this.shareIcon.color.setDark(dark, dark, dark);
-                return dark > 0.7;
-            }).unique('shareIconHover', true);
+    }
+
+    showHint(cheat = false) {
+        if (this.hintMovesOut < 0) return;
+
+        // Find all hexes that can show a hint, sorted by ideal order
+        let hintable = this.gridRenderer.hexes
+        .filter(h => !h.tile.unlocked && !h.isHidden() && h.hasGroup)
+        .sort((a, b) => {
+            return a.tile.groupIndex - b.tile.groupIndex;
         });
-        this.shareIcon.visible = !this.isTutorial;
+        // Get their group indexes
+        let hintableGroups = hintable.map(h => h.tile.groupIndex)
+            .filter((value, index, self) => self.indexOf(value) === index);
+        if (hintableGroups.length === 0) return;
+
+        // In case we're near the end of the game, make sure we can hint as far out as desired
+        while (this.hintMovesOut >= hintableGroups.length) this.hintMovesOut--;
+        let hintGroupIndex = hintableGroups[this.hintMovesOut];
+
+        if (cheat) {
+            hintGroupIndex = hintableGroups[0];
+            let toUnlock = hintable
+            .filter(h => h.tile.groupIndex === hintGroupIndex)
+            .map(h => h.tile);
+            toUnlock = this.game.unlockTiles(toUnlock);
+            this.refresh();
+            this.game.onTilesUnlocked.emit(toUnlock);
+            return;
+        }
+
+        let priorHintHex = this.hintHex;
+        // Hint the first hex in the hint group
+        this.hintHex = hintable.filter(h => h.tile.groupIndex === hintGroupIndex)[0];
+        this.hintMovesOut--;
+        if (!this.hintHex) return; // This should never happen, but just in case
+
+        // Remove the prior hint and show the new one
+        if (priorHintHex) priorHintHex.showingIndicator = false;
+        this.hintHex.showingIndicator = true;
+    }
+
+    clearHints() {
+        if (this.hintHex) this.hintHex.showingIndicator = false;
+        this.hintMovesOut = this.maxHintMovesOut;
     }
 
     update(delta: number) {

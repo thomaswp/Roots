@@ -26,7 +26,7 @@ export class Network {
     constructor(game: Roots) {
         this.game = game;
 
-        this.game.onTilesActivated.addHandler((tiles) => {
+        this.game.onTilesUnlocked.addHandler((tiles) => {
             this.connections.forEach(conn => {
                 if (!conn.open) return;
                 conn.send({

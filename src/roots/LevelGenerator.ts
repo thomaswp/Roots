@@ -116,7 +116,11 @@ export class LevelGenerator {
 
     get progress() : number {
         let grid = this.grid.toArray();
-        return grid.filter(tile => tile.groupIndex != null).length / grid.length;
+        return grid.filter(tile => tile.hasGroup).length / grid.length;
+    }
+
+    static createGrid(width: number, height: number) {
+        return new Grid(Tile, rectangle({ width: width, height: height }));
     }
 
     constructor(seed: string, width: number, height: number) {
@@ -124,7 +128,7 @@ export class LevelGenerator {
         this.width = width;
         this.height = height;
 
-        this.grid = new Grid(Tile, rectangle({ width: width, height: height }));
+        this.grid = LevelGenerator.createGrid(width, height);
 
         let id = 0;
         this.grid.forEach(tile => {
@@ -249,7 +253,7 @@ export class LevelGenerator {
 
             tileGroup.forEach(groupTile => {
                 ungroupedTiles.splice(ungroupedTiles.indexOf(groupTile), 1);
-                if (groupTile.groupIndex != null) console.error("tile already has group index", groupTile.groupIndex);
+                if (groupTile.hasGroup) console.error("tile already has group index", groupTile.groupIndex);
                 groupTile.groupIndex = nextGroupIndex;
                 groupedTiles.push(groupTile);
                 // if (addStone) groupTile.isStoneTile = true;

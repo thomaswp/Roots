@@ -12,6 +12,7 @@ export class HexRenderer extends Container {
     readonly gridRenderer: GridRenderer;
     
     hovering = false;
+    backgroundColor: PIXI.Color;
 
     private icon: SpriteH;
     private hex: PIXI.Graphics;
@@ -51,6 +52,10 @@ export class HexRenderer extends Container {
         this.gridRenderer.setIndicatorShowing(this, showing);
     }
 
+    get hasGroup() : boolean {
+        return this.tile.hasGroup;
+    }
+
     constructor(tile: Tile, gridRenderer: GridRenderer) {
         super();
         this.gridRenderer = gridRenderer;
@@ -75,15 +80,15 @@ export class HexRenderer extends Container {
 
     setHidden(hidden: boolean) {
         // Fade in when unhiding
-        if (!hidden && this.hidden) this.alpha = 0;
+        // if (!hidden && this.hidden) this.alpha = 0;
         this.hidden = hidden;
-        this.icon.alpha = this.hex.alpha = this.hidden ? 0 : 1;
+        // this.icon.alpha = this.hidden ? 0 : 1;
         this.refresh();
     }
 
     createIcon() {
         let texture = null;
-        if (this.tile.groupIndex !== undefined) {
+        if (this.hasGroup) {
             let path = this.renderer.iconPathForGroupIndex(this.tile.groupIndex);
             texture = PIXI.Texture.from(path);
         }
@@ -189,14 +194,9 @@ export class HexRenderer extends Container {
         //     return {x: c.x * inset, y: c.y * inset};
         // });
 
-        let color = this.getGroupColor();
-        if (this.tile.isStoneTile) {
-            color = new PIXI.Color(0xaaaaaa);
-        }
-
         let hex = this.hex = new PIXI.Graphics();
         hex.clear();
-        hex.beginFill(color);
+        hex.beginFill(0xffffff);
         hex.drawPolygon(translatedCorners);
         hex.endFill();
         this.addChild(hex);
@@ -208,9 +208,9 @@ export class HexRenderer extends Container {
             this.borderPieces.push(piece);
             let startCorner = translatedCorners[i % 6];
             let endCorner = translatedCorners[(i + 1) % 6];
-            if (this.tile.groupIndex == 0) {
-                console.log(i, startCorner, endCorner);
-            }
+            // if (this.tile.groupIndex == 0) {
+            //     console.log(i, startCorner, endCorner);
+            // }
             piece.moveTo(startCorner.x, startCorner.y);
             piece.lineTextureStyle({cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND, width: 3, color: 0xffffff})
             // piece.lineStyle(3, 0xffffff);
@@ -309,6 +309,13 @@ export class HexRenderer extends Container {
         );
         this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, delta * colorShiftSpeed, 0.005);
 
+        if (this.hidden) {
+            this.hex.alpha = 1;
+        } else {
+            let hideHex = this.unlocked && this.renderer.game.nStones > 2 && this.flipValue <= 0;
+            this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, delta * 0.1, 0.005);
+        }
+
         if (this.alpha < 1) {
             this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
         }
@@ -321,6 +328,14 @@ export class HexRenderer extends Container {
 
     getGroupColor() : PIXI.Color {
         return this.gridRenderer.renderer.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
+    }
+
+    getHexColor() : PIXI.Color {
+        let color = new PIXI.Color(this.getGroupColor());
+        if (this.tile.isStoneTile) {
+            color.setValue(0xaaaaaa);
+        }
+        return color;
     }
 
 
@@ -345,7 +360,8 @@ export class HexRenderer extends Container {
         let zIndex = 0;
         if (tile.unlocked) {
             // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb);
-            lineColor = 0xeeeeee;
+            // lineColor = 0xeeeeee;
+            lineColor = 0x965B00;
             hex.zIndex = active ? 1 : 0;
             zIndex = 1;
         } else if (this.active) {
@@ -381,19 +397,24 @@ export class HexRenderer extends Container {
         } else {
             targetIconColor = 0x000000;
         }
-        this.targetIconColor.setValue(targetIconColor);
-        this.targetIconColor.setAlpha(this.unlocked ? 0.85 : 1);
+        this.targetIconColor.setValue(this.unlocked ? 0x555555 : targetIconColor);
+        this.targetIconColor.setAlpha(this.unlocked ? 0 : 1);
         this.targetScale = this.active ? 1.08 : 1;
 
-        if (hovering) {
-            this.targetHexColor = 0xeeeeee;
-        } else if (this.unlocked) {
-            this.targetHexColor = 0xeeeeee;
-        } else if (this.active) {
-            this.targetHexColor = 0xffffff;
-        } else {
-            this.targetHexColor = 0x888888;
+        let hexColor = this.getHexColor();
+        if (this.backgroundColor && this.unlocked && this.renderer.game.nStones == 2) {
+            hexColor.setValue(this.backgroundColor);
         }
+        if (this.hidden) {
+            hexColor.setValue(0x000000);
+        } else if (hovering || active) {
+            hexColor.multiply(0xeeeeee);
+        } else if (this.unlocked) {
+            hexColor.multiply(0xeeeeee);
+        } else {
+            hexColor.multiply(0x888888);
+        }
+        this.targetHexColor = hexColor.toNumber();
 
         this.updateBorder();
     }

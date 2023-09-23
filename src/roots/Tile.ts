@@ -10,7 +10,11 @@ export type TileData = {
 
 export const tileSize = 30;
 
-export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" }) {
+export function defineTileHex() {
+    return defineHex({ dimensions: tileSize, origin: {x: 0, y: 0}});
+}
+
+export class Tile extends defineTileHex() {
 
     // serializable fields
     id: number;
@@ -23,6 +27,11 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
     // active: boolean = false;
     groupCount: number;
     game: Roots;
+    borderingGroupTiles: Set<Tile>;
+
+    get hasGroup() {
+        return this.groupIndex != undefined;
+    }
 
     serialize(): TileData {
         return {
@@ -39,6 +48,28 @@ export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" })
         this.groupIndex = data.groupIndex;
         this.isStoneTile = data.isStoneTile;
         this.movesetIndex = data.movesetIndex;
+    }
+
+    getBorderingGroupTiles() {
+        if (this.hasGroup) return null;
+        if (this.borderingGroupTiles) return this.borderingGroupTiles;
+        let checked = new Set<Tile>();
+        let bordering = new Set<Tile>();
+        Tile.addBorderingGroupTiles(this, checked, bordering);
+        this.borderingGroupTiles = bordering;
+        return bordering;
+    }
+
+    private static addBorderingGroupTiles(tile: Tile, checked: Set<Tile>, bordering: Set<Tile>) {
+        if (checked.has(tile)) return;
+        checked.add(tile);
+        if (tile.hasGroup) {
+            bordering.add(tile);
+            return;
+        }
+        tile.getNeighbors().forEach(neighbor => {
+            this.addBorderingGroupTiles(neighbor, checked, bordering);
+        });
     }
 
     // isPassable() {

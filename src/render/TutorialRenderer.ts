@@ -311,6 +311,9 @@ export class TutorialController {
     constructor(renderer: GameRenderer) {
         this.renderer = renderer;
         this.init();
+        renderer.onResized.addHandler(() => {
+            this.updateShowing([]);
+        });
     }
 
     getCurrentMovesetShowing() {
@@ -322,7 +325,7 @@ export class TutorialController {
     }
 
     init() {
-        this.tiles = this.renderer.game.grid.toArray().filter(t => t.groupIndex !== undefined);
+        this.tiles = this.renderer.game.grid.toArray().filter(t => t.hasGroup);
         this.tiles.sort((a, b) => a.groupIndex - b.groupIndex);
         this.findNextMoveset();
     }
@@ -401,11 +404,11 @@ export class TutorialController {
     }
 
     getIconHexes() {
-        return this.hexes.filter(t => t.tile.groupIndex !== undefined);
+        return this.hexes.filter(t => t.hasGroup);
     }
 
     getLockedHexes() {
-        return this.hexes.filter(t => !t.tile.unlocked && t.tile.groupIndex !== undefined);
+        return this.hexes.filter(t => !t.tile.unlocked && t.hasGroup);
     }
 
     getNextGroupIndex() {

@@ -51,7 +51,7 @@ export class Multitouch {
         this.scaleViewport.x = app.view.width / 2;
         this.scaleViewport.y = app.view.height / 2;
 
-        this.minScale = Math.min(app.view.width / this.width, app.view.height / this.height);
+        this.minScale = Math.min(app.view.width / this.width, app.view.height / this.height) * 0.97;
 
         this.scale = this.targetScale = this.minScale;
     }
@@ -66,6 +66,9 @@ export class Multitouch {
         this.height = height;
 
         this.resetTransform();
+        renderer.onResized.addHandler(() => {
+            this.resetTransform();
+        }, true);
 
 
         // this.scaleViewport.scale.x = this.scaleViewport.scale.y = 2;

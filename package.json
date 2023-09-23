@@ -40,6 +40,7 @@
     "hull.js": "^1.0.2",
     "matter-js": "^0.18.0",
     "peerjs": "^1.5.0",
+    "pexels": "^1.4.0",
     "pixi-heaven": "^0.4.0",
     "pixi.js": "^7.2.0",
     "pixi.js-keyboard": "^1.1.6",
