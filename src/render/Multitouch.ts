@@ -194,7 +194,7 @@ export class Multitouch {
 
         let targetScale = this.targetScale;
 
-        let lerpRate = 0.2 * delta;
+        let lerpRate = 0.3;
         this.scale = lerp(this.scale, targetScale, lerpRate, 0.005);
 
         // Demon magic: do not mess with
@@ -207,7 +207,7 @@ export class Multitouch {
         if (targetY < -boundsY) targetY = -boundsY;
         if (targetY > boundsY) targetY = boundsY;
 
-        lerpRate = 0.6 * delta;
+        lerpRate = 1; // To make it snappy on mobile
         this.panViewport.x = lerp(this.panViewport.x, targetX, lerpRate, 0.5);
         this.panViewport.y = lerp(this.panViewport.y, targetY, lerpRate, 0.5);
     }
