@@ -26,6 +26,7 @@ export class Button extends PIXI.Container {
         });
 
         let uniqueName = 'buttonHover' + this.id;
+        // TODO: Add pointer events too!
         this.icon.on('mouseover', () => {
             updater.run(() => {
                 let dark = this.icon.color.dark[0];

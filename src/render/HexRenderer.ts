@@ -79,9 +79,12 @@ export class HexRenderer extends Container {
     }
 
     setHidden(hidden: boolean) {
+        if (hidden == this.hidden) return;
         // Fade in when unhiding
         // if (!hidden && this.hidden) this.alpha = 0;
         this.hidden = hidden;
+        this.icon.visible = !hidden;
+        if (!hidden) this.icon.alpha = 0;
         // this.icon.alpha = this.hidden ? 0 : 1;
         this.refresh();
     }

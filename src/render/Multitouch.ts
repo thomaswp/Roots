@@ -157,6 +157,8 @@ export class Multitouch {
         for (let hex of hexes) {
             let x = hex.x - this.width / 2;
             let y = hex.y - this.height / 2;
+            x += hex.tile.width / 2;
+            y += hex.tile.height / 2;
             min.x = Math.min(min.x, x - hex.width / 2);
             min.y = Math.min(min.y, y - hex.height / 2);
             max.x = Math.max(max.x, x + hex.width / 2);
@@ -169,6 +171,7 @@ export class Multitouch {
 
         let centerX = (min.x + max.x) / 2;
         let centerY = (min.y + max.y) / 2;
+        // console.log(hexes, centerX, centerY);
         this.targetPan.set(-centerX, -centerY);
 
         let width = max.x - min.x;
@@ -207,7 +210,7 @@ export class Multitouch {
         if (targetY < -boundsY) targetY = -boundsY;
         if (targetY > boundsY) targetY = boundsY;
 
-        lerpRate = 1; // To make it snappy on mobile
+        lerpRate = 0.4; // To make it snappy on mobile
         this.panViewport.x = lerp(this.panViewport.x, targetX, lerpRate, 0.5);
         this.panViewport.y = lerp(this.panViewport.y, targetY, lerpRate, 0.5);
     }

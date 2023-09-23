@@ -305,7 +305,6 @@ export class TutorialController {
             },
             text: ''
         },
-        // TODO: On mobile, explain panning
     ];
 
     constructor(renderer: GameRenderer) {
