@@ -10,6 +10,7 @@ import tutorialLevel from "./TutorialLevel.json";
 import { LoadingRenderer } from "./render/LoadingRenderer";
 import { PexelsImageSearch } from "./gen/images";
 
+// TODO: Remove in production
 window["Pexels"] = PexelsImageSearch;
 
 window.onload = function() {

@@ -129,7 +129,13 @@ export class GameRenderer {
         let backgroundsString = this.invertAxes ? portraitBackgrounds : landscapeBackgrounds;
         let backgrounds = backgroundsString.split('\n').filter(s => s.length > 0).map(s => s.trim());
         let backgroundIndex = backgrounds.findIndex(s => s.replace(".jpg",".png") === lastAnimalIcon);
+        // If the seed is an animal, use that
+        let seedBackground = this.game.seed + ".jpg";
+        if (backgrounds.includes(seedBackground)) {
+            backgroundIndex = backgrounds.indexOf(seedBackground);
+        }
         if (backgroundIndex === -1) backgroundIndex = Math.floor(rng() * backgrounds.length);
+        // backgroundIndex = Math.floor(Math.random() * backgrounds.length); // For testing
         let background = backgrounds[backgroundIndex];
         let subfolder = this.invertAxes ? 'portrait' : 'landscape';
         this.backgroundTexture = PIXI.Texture.from(`img/backgrounds/${subfolder}/${background}`);
