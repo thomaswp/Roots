@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Roots } from '../roots/Roots';
 import { GridRenderer } from './GridRender';
-import { animalIcons, landscapeBackgrounds } from './Animals';
+import { animalIcons, landscapeBackgrounds, portraitBackgrounds } from './Animals';
 import { LevelGenerator } from '../roots/LevelGenerator';
 import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
@@ -66,7 +66,7 @@ export class GameRenderer {
     constructor(app: PIXI.Application<HTMLCanvasElement>, game: Roots, isTutorial: boolean) {
         this.app = app;
         // TODO: support vertical orientation
-        this.invertAxes = false; // app.view.width < app.view.height;
+        this.invertAxes = app.view.width < app.view.height;
         this.game = game;
         this.isTutorial = isTutorial;
         this.hexContainer = new PIXI.Container();
@@ -126,11 +126,13 @@ export class GameRenderer {
         
         let lastGroup = this.game.grid.toArray().map(t => t.groupIndex).sort((a, b) => b - a)[0];
         let lastAnimalIcon = this.groupAnimalPaths[lastGroup];
-        let backgrounds = landscapeBackgrounds.split('\n').filter(s => s.length > 0).map(s => s.trim());
+        let backgroundsString = this.invertAxes ? portraitBackgrounds : landscapeBackgrounds;
+        let backgrounds = backgroundsString.split('\n').filter(s => s.length > 0).map(s => s.trim());
         let backgroundIndex = backgrounds.findIndex(s => s.replace(".jpg",".png") === lastAnimalIcon);
         if (backgroundIndex === -1) backgroundIndex = Math.floor(rng() * backgrounds.length);
         let background = backgrounds[backgroundIndex];
-        this.backgroundTexture = PIXI.Texture.from('img/backgrounds/landscape/' + background);
+        let subfolder = this.invertAxes ? 'portrait' : 'landscape';
+        this.backgroundTexture = PIXI.Texture.from(`img/backgrounds/${subfolder}/${background}`);
         // new PIXI.Sprite(this.backgroundTexture).on
     }
 

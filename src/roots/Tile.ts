@@ -10,7 +10,11 @@ export type TileData = {
 
 export const tileSize = 30;
 
-export class Tile extends defineHex({ dimensions: tileSize, origin: "topLeft" }) {
+export function defineTileHex() {
+    return defineHex({ dimensions: tileSize, origin: {x: 0, y: 0}});
+}
+
+export class Tile extends defineTileHex() {
 
     // serializable fields
     id: number;

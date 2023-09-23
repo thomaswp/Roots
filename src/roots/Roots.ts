@@ -114,7 +114,7 @@ export class Roots {
         this.nStonePiecesPerStone = data.nStonePiecesPerStone || 1;
         this.width = data.width;
         this.height = data.height;
-        this.grid = new Grid(Tile, rectangle({ width: data.width, height: data.height }));
+        this.grid = LevelGenerator.createGrid(data.width, data.height);
         let i = 0;
         this.grid.forEach(tile => {
             tile.deserialize(i, data.tiles[i++]);

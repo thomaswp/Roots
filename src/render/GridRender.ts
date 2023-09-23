@@ -29,19 +29,20 @@ export class GridRenderer {
         this.container = new PIXI.Container();
         this.container.sortableChildren = true;
 
-        this.width = (renderer.game.width + 1) * tileSize * Math.sqrt(3);
+        this.width = (renderer.game.width + 0.5) * tileSize * Math.sqrt(3);
         this.height = (renderer.game.height + 0.5) * tileSize * 1.5;
         if (this.renderer.invertAxes) {
             [this.width, this.height] = [this.height, this.width];
         }
-        this.container.x = -this.width / 2;
-        this.container.y = -this.height / 2;
+        this.container.x = -this.width / 2 + tileSize;
+        this.container.y = -this.height / 2 + tileSize;
 
         let loaded = false;
         this.renderer.backgroundTexture.on('update', (e) => {
             if (loaded) return;
             loaded = true;
             this.setTileBackgroundColors();
+            // this.backgrounds.push(this.createMiniTileBackground(3));
             for (let i = 1; i <= 3; i++) {
                 this.backgrounds.push(this.createMiniTileBackground(i));
             }
@@ -49,19 +50,24 @@ export class GridRenderer {
     }
 
     createMiniTileBackground(power: number) {
+        const isLandscape = !this.renderer.invertAxes;
+
         // Works best with power of 2
         let scale = Math.round(Math.pow(2, power));
 
         let hexScale = 2 / Math.sqrt(3) / scale;
 
-        let gridWidth = Math.round(this.renderer.game.width * scale) + 1 * scale;
-        let gridHeight = this.renderer.game.height * scale / 2 * 1.5 + 1 * scale; // - 1 * scale;
+        let gridWidth = this.renderer.game.width * scale + 1 * scale;
+        let gridHeight = Math.ceil(this.renderer.game.height * scale / 2 * 1.5) + 1 * scale; // - 1 * scale;
+
+        if (!isLandscape) {
+            [gridWidth, gridHeight] = [gridHeight, gridWidth];
+        }
 
         const baseTile = this.hexes[0].tile;
         const CustomHex = defineHex({
             dimensions: baseTile.dimensions.xRadius * hexScale,
-            orientation: Orientation.FLAT,
-            // orientation: Orientation.POINTY,
+            orientation: isLandscape ? Orientation.FLAT : Orientation.POINTY,
             origin: baseTile.origin,
             offset: baseTile.offset
         });
@@ -71,6 +77,7 @@ export class GridRenderer {
 
 
         let colorArray = this.getScaledColorArray(gridWidth, gridHeight);
+
         let gridArray = grid.toArray();
         colorArray.forEach((color, index) => {
             let hex = gridArray[index];
@@ -81,8 +88,14 @@ export class GridRenderer {
             graphics.endFill();
         });
 
-        graphics.x -= baseTile.dimensions.xRadius * Math.sqrt(3) / 2;
-        graphics.y -= baseTile.dimensions.xRadius * 1.5;
+        const tileRadius = baseTile.dimensions.xRadius;
+        if (isLandscape) {
+            graphics.x -= tileRadius * Math.sqrt(3) / 2;
+            graphics.y -= tileRadius * 1.5;
+        } else {
+            graphics.x -= tileRadius * 1.5;
+            graphics.y -= tileRadius * Math.sqrt(3) / 2;
+        }
 
         graphics.zIndex = -100 - power;
         this.container.addChild(graphics);
@@ -90,25 +103,48 @@ export class GridRenderer {
     }
 
     createBorder() {
-        let grid = new Grid(Tile, rectangle({ width: this.renderer.game.width + 2, height: this.renderer.game.height + 3 }));
+        const isLandscape = !this.renderer.invertAxes;
 
+        const baseTile = this.hexes[0].tile;
+        const CustomHex = defineHex({
+            dimensions: baseTile.dimensions.xRadius,
+            orientation: isLandscape ? Orientation.POINTY : Orientation.FLAT,
+            origin: baseTile.origin,
+            offset: baseTile.offset
+        });
+
+        let gridWidth = this.renderer.game.width + 2;
+        let gridHeight = this.renderer.game.height + 4;
+        if (!isLandscape) {
+            [gridWidth, gridHeight] = [gridHeight, gridWidth];
+        }
+
+        let grid = new Grid(CustomHex, rectangle({ width: gridWidth, height: gridHeight }));
 
         let graphics = new PIXI.Graphics();
 
-        const baseTile = this.hexes[0].tile;
         let radius = baseTile.dimensions.xRadius;
         let offX = -radius * Math.sqrt(3) * 0.5 * 2;
         let offY = -radius * 1.5 * 2;
+        if (!isLandscape) {
+            [offX, offY] = [offY, offX];
+        }
 
-        // TODO: Handle inverted axes
-        grid.toArray().forEach(tile => {
+        // TODO: This is very hacky - need to understand why it works
+        let minX = isLandscape ? -radius * 1 : -radius * 2;
+        let maxX = this.width - (isLandscape ? radius * 2  : radius * 2)
+        let minY = isLandscape ? -radius * 1.5 : -radius;
+        let maxY = this.height - (isLandscape ? radius * 2 : radius * 2);
+
+        grid.toArray().forEach((tile, i) => {
             let points = tile.corners;
             let center = tile.center;
             let x = -center.x + offX;
             let y = -center.y + offY;
-            if (x > -radius / 2 && x <= this.width - radius * 2) {
-                if (y > -radius / 2 * 2 && y <= this.height - radius * 2) return;
+            if (x > minX && x <= maxX) {
+                if (y > minY && y <= maxY) return;
             };
+            // graphics.beginFill(0xffff00);
             graphics.beginFill(0x000000);
             graphics.drawPolygon(points);
             graphics.endFill();
@@ -148,27 +184,22 @@ export class GridRenderer {
     }
 
     setTileBackgroundColors() {
-        let resource = this.renderer.backgroundTexture.baseTexture.resource;
-        let image = resource["source"] as HTMLImageElement;
-
         let gridWidth = this.renderer.game.width;
         let gridHeight = this.renderer.game.height;
-        
-        // Attempt at triangles... unsuccessfull because width/height
-        // would be different scales
-        // for (let i = 0; i < gridWidth; i++) {
-        //     for (let j = 0; j < gridHeight; j++) {
-        //         let index = i + j * gridWidth;
 
-        //         let offset = j % 2 == 0 ? 0 : 1;
-        //         let col1 = offset + i * 2;
-        //         let col2 = col1 + 1;
-        //     }
-        // }
+        if (this.renderer.invertAxes) {
+            [gridWidth, gridHeight] = [gridHeight, gridWidth];
+        }
 
         let colorArray = this.getScaledColorArray(gridWidth, gridHeight);
         colorArray.forEach((color, index) => {
-            let hex = this.hexes[index];
+            let realIndex = index;
+            if (this.renderer.invertAxes) {
+                let x = index % gridWidth;
+                let y = Math.floor(index / gridWidth);
+                realIndex = x * gridHeight + y;
+            }
+            let hex = this.hexes[realIndex];
             hex.backgroundColor = color;
             hex.refresh();
         });

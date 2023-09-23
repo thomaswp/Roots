@@ -375,3 +375,12 @@ wild_dog.jpg
 wolf.jpg
 woodpecker.jpg
 `
+
+export const portraitBackgrounds = `
+buffalo.jpg
+bull.jpg
+butterfly.jpg
+cardinal.jpg
+chicken.jpg
+chipmunk.jpg
+`

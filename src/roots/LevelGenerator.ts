@@ -119,12 +119,16 @@ export class LevelGenerator {
         return grid.filter(tile => tile.hasGroup).length / grid.length;
     }
 
+    static createGrid(width: number, height: number) {
+        return new Grid(Tile, rectangle({ width: width, height: height }));
+    }
+
     constructor(seed: string, width: number, height: number) {
         console.log(findSubsetsThatSumTo);
         this.width = width;
         this.height = height;
 
-        this.grid = new Grid(Tile, rectangle({ width: width, height: height }));
+        this.grid = LevelGenerator.createGrid(width, height);
 
         let id = 0;
         this.grid.forEach(tile => {
