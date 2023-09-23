@@ -7,9 +7,8 @@ import seedrandom from 'seedrandom'
 import { Tile } from '../roots/Tile';
 import { Multitouch } from './Multitouch';
 import { TutorialController } from './TutorialRenderer';
-import { SpriteH } from 'pixi-heaven';
 import { Event } from '../util/Event';
-import { Action, Updater } from '../util/Updater';
+import { Updater } from '../util/Updater';
 import { lerp } from '../util/MathUtil';
 import { Indicator } from './Indicator';
 import { Button } from './Button';
@@ -26,6 +25,7 @@ export class GameRenderer {
     readonly onHoverChanged = new Event<number>();
     readonly onResized = new Event<void>();
     readonly onShare = new Event<void>();
+    readonly onBackgroundLoaded = new Event<void>();
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
@@ -47,7 +47,7 @@ export class GameRenderer {
 
     private tutorialText: PIXI.Text;
 
-    backgroundTexture: PIXI.Texture;
+    readonly backgroundImg: HTMLImageElement = new Image();
 
     readonly activatedTiles = new Set<Tile>();
 
@@ -138,8 +138,12 @@ export class GameRenderer {
         // backgroundIndex = Math.floor(Math.random() * backgrounds.length); // For testing
         let background = backgrounds[backgroundIndex];
         let subfolder = this.invertAxes ? 'portrait' : 'landscape';
-        this.backgroundTexture = PIXI.Texture.from(`img/backgrounds/${subfolder}/${background}`);
-        // new PIXI.Sprite(this.backgroundTexture).on
+
+        let source = `img/backgrounds/${subfolder}/${background}`;
+        this.backgroundImg.src = source;
+        this.backgroundImg.onload = () => {
+            this.onBackgroundLoaded.emit();
+        };
     }
 
 

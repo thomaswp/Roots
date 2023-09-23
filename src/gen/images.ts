@@ -1,5 +1,6 @@
 import { createClient, PhotosWithTotalResults } from "pexels";
 import { animalIcons } from "../render/Animals";
+import { fetchImageAsDataURL } from "../util/ImageUtils";
 
 export class PexelsImageSearch {
 
@@ -32,7 +33,7 @@ export class PexelsImageSearch {
 
     static async downloadImage(name: string, url: string) {
         const link = document.createElement("a");
-        let internal = await PexelsImageSearch.fetchImage(url);
+        let internal = await fetchImageAsDataURL(url);
         if (internal === null) return;
         link.href = internal;
         link.download = name;
@@ -46,16 +47,6 @@ export class PexelsImageSearch {
             return;
         }
         await PexelsImageSearch.downloadImage(name.replace(" ", "-"), url);
-    }
-
-    static async fetchImage(url: string) {
-        let response = await fetch(url);
-        if (!response.ok) {
-            console.error(response);
-            return null;
-        }
-        let blob = await response.blob();
-        return URL.createObjectURL(blob);
     }
 
     static async downloadAllImages(orientation: 'landscape' | 'portrait') {

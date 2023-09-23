@@ -37,16 +37,18 @@ export class GridRenderer {
         this.container.x = -this.width / 2 + tileSize;
         this.container.y = -this.height / 2 + tileSize;
 
-        let loaded = false;
-        this.renderer.backgroundTexture.on('update', (e) => {
-            if (loaded) return;
-            loaded = true;
-            this.setTileBackgroundColors();
-            // this.backgrounds.push(this.createMiniTileBackground(3));
-            for (let i = 1; i <= 3; i++) {
-                this.backgrounds.push(this.createMiniTileBackground(i));
-            }
+        this.renderer.onBackgroundLoaded.addHandler(() => {
+            this.loadBackgroundImage();
         });
+    }
+
+    loadBackgroundImage() {
+        if (this.backgrounds.length > 0) return;
+        this.setTileBackgroundColors();
+        // this.backgrounds.push(this.createMiniTileBackground(3));
+        for (let i = 1; i <= 3; i++) {
+            this.backgrounds.push(this.createMiniTileBackground(i));
+        }
     }
 
     createMiniTileBackground(power: number) {
@@ -158,9 +160,7 @@ export class GridRenderer {
     }
 
     getScaledColorArray(width: number, height: number) {
-        let resource = this.renderer.backgroundTexture.baseTexture.resource;
-        let image = resource["source"] as HTMLImageElement;
-
+        let image = this.renderer.backgroundImg;
         let canvas = document.createElement('canvas');
         // TODO: handle reversed axes
         canvas.width = width;
