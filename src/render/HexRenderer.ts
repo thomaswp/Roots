@@ -147,6 +147,7 @@ export class HexRenderer extends Container {
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
+            if (this.renderer.disableActivation) return;
             let selectAll = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
@@ -274,7 +275,9 @@ export class HexRenderer extends Container {
             // let perc = Math.cos(this.errorPerc * Math.PI) * -0.5 + 0.5;
             // targetBorderColor = lerpHexColor(targetBorderColor, 0xff0000, perc, 0.005);
             this.rotation = Math.sin(this.errorPerc * Math.PI) * 0.6;
-            targetColor = targetBorderColor = 0xffffff;
+            let groupColor = this.getGroupColor().toNumber(); 
+            targetBorderColor = this.tile.isStoneTile ? groupColor : 0xffffff;
+            targetColor = this.getHexColor().toNumber();
             colorShiftSpeed = 1;
             targetZIndex = 5;
         }

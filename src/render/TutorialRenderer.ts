@@ -1,4 +1,5 @@
 import { Tile } from "../roots/Tile";
+import { isTouchDevice } from "../util/MobileUtils";
 import { removeUrlParam, setUrlParam } from "../util/NavUtils";
 import { GameRenderer } from "./GameRenderer";
 import { HexRenderer } from "./HexRenderer";
@@ -32,6 +33,7 @@ export class TutorialController {
     isError: boolean = false;
 
     private lastUnlockedCount = 0;
+    private hintClicked = false;
 
     tutorialStepIndex = 0;
     tutorialSteps: TutorialStep[] = [
@@ -137,7 +139,7 @@ export class TutorialController {
                 this.updateShowing(this.currentMoveset.slice(0, this.currentMoveset.length - 2));
 
             },
-            text: 'Great job! Now *unlock* another pair.',
+            text: 'Great job! Now *unlock* another pair. Unlocking pairs begins to reveal a picture!',
         },
         {
             name: 'auto select',
@@ -196,7 +198,7 @@ export class TutorialController {
                 nextMove.forEach(h => h.showingIndicator = true);
                 this.updateShowing([...nextMove, ...intersectingHexes], true);
             },
-            text: 'Now you can *activate* three tiles at a time! ' +
+            text: 'Now you can *activate* three tiles at a time, and the picture is becoming clearer! ' +
                 'Try to *unlock* another pair of tiles.',
         },
         {
@@ -268,20 +270,60 @@ export class TutorialController {
                 'six are colored purple. Now finish unlocking the stone tiles!'
         },
         {
-            name: 'toFourStones',
+            name: 'clickHintButton',
             isReady: () => this.currentMoveset.filter(t => !t.tile.unlocked).length == 0,
             activate: () => {
                 this.clearIndicators();
                 let sortedHexes = this.getIconHexes().sort((a, b) => a.tile.groupIndex - b.tile.groupIndex);
                 let lockedStoneTiles = sortedHexes.filter(t => t.tile.isStoneTile && !t.tile.unlocked);
                 let nextTwoStoneGroups = lockedStoneTiles.slice(0, 4);
-                console.log(sortedHexes, lockedStoneTiles, nextTwoStoneGroups);
-                nextTwoStoneGroups.forEach(h => h.showingIndicator = true);
                 let toShow = this.hexes.filter(h => h.tile.groupIndex <= nextTwoStoneGroups[3].tile.groupIndex);
                 this.updateShowing(toShow);
+                this.renderer.disableActivation = true;
+                this.renderer.hintButtonIndicator.showing = true;
             },
-            text: 'Good work! Now *unlock* two more pairs of *stone tiles*! ' +
-                'You might need to start by *unlocking* tiles far away from the *stone tiles*.'
+            text: 'Good work - you can see more *stone tiles* now! ' +
+                'Sometimes things are tricky. Click the *hint button* (lightbulb) in the top-left corner.',
+        },
+        {
+            name: 'hint1',
+            isReady: () => this.hintClicked,
+            activate: () => {
+                
+            },
+            text: 'The hint indicates a tile you can unlock soon, within 3 moves. ' +
+                'Sometimes you need a more specific hint, though. Click the hint button again.',
+        },
+        {
+            name: 'hint2',
+            isReady: () => this.hintClicked,
+            activate: () => {
+                
+            },
+            text: 'The second time, it shows a tile you can unlock within 2 moves. ' +
+                'Click the hint button again.',
+        },
+        {
+            name: 'hint3',
+            isReady: () => this.hintClicked,
+            activate: () => {
+                this.renderer.hintButtonIndicator.showing = false;
+                this.renderer.disableActivation = false;
+                this.lastUnlockedCount = this.getUnlockedCount();
+            },
+            text: 'The third time, it shows a tile you can unlock right now. ' +
+                'Now unlock the tile!',
+        },
+        {
+            name: 'toFourStones',
+            isReady: () => this.getUnlockedCount() > this.lastUnlockedCount,
+            activate: () => {
+                let sortedHexes = this.getIconHexes().sort((a, b) => a.tile.groupIndex - b.tile.groupIndex);
+                let lockedStoneTiles = sortedHexes.filter(t => t.tile.isStoneTile && !t.tile.unlocked);
+                let nextTwoStoneGroups = lockedStoneTiles.slice(0, 4);
+                nextTwoStoneGroups.forEach(h => h.showingIndicator = true);
+            },
+            text: 'Now *unlock* two more pairs of *stone tiles*!',
         },
         {
             name: 'fourStones',
@@ -338,12 +380,14 @@ export class TutorialController {
         .sort((a, b) => a.tile.groupIndex - b.tile.groupIndex);
     }
 
-    step(isError = false) {
+    step(isError = false, isHint = false) {
         this.isError = isError;
+        this.hintClicked = isHint;
         if (this.tutorialStepIndex >= this.tutorialSteps.length) return;
         let nextStep = this.tutorialSteps[this.tutorialStepIndex];
         if (nextStep.isReady()) {
             nextStep.activate();
+            this.isError = this.hintClicked = false;
             let text = this.formatText(nextStep.text);
             this.renderer.showTutorialText(text);
             console.log('starting tutorial step:', nextStep.name, nextStep, this);
@@ -372,8 +416,8 @@ export class TutorialController {
         return text;
     }
 
-    isTouchDevice() {
-        return ('ontouchstart' in window);
+    private isTouchDevice() {
+        return isTouchDevice();
     }
 
     updateShowing(addedTiles: HexRenderer[], focusOnlyTheseOnMobile = false) {

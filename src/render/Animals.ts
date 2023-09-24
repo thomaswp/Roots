@@ -275,7 +275,6 @@ goldfish.jpg
 goose.jpg
 gorilla.jpg
 grasshopper.jpg
-greyhound.jpg
 griffin.jpg
 guinea_pig.jpg
 gull.jpg

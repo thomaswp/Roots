@@ -13,6 +13,7 @@ import { lerp } from '../util/MathUtil';
 import { Indicator } from './Indicator';
 import { Button } from './Button';
 import { HexRenderer } from './HexRenderer';
+import { isMobileDevice } from '../util/MobileUtils';
 
 export class GameRenderer {
 
@@ -40,8 +41,10 @@ export class GameRenderer {
     private stonePiecesOutline: PIXI.Graphics;
     stonesIndicator: Indicator;
     stonePiecesIndicator: Indicator;
+    hintButtonIndicator: Indicator;
     private shareButton: Button;
     private hintButton: Button;
+    private hintButtonText: PIXI.Text;
     private hexContainer: PIXI.Container;
     private mainContainer: PIXI.Container;
 
@@ -52,7 +55,8 @@ export class GameRenderer {
     readonly activatedTiles = new Set<Tile>();
 
     readonly invertAxes: boolean = false;
-    autoSelectGroup: boolean = true;
+    autoSelectGroup = true;
+    disableActivation = false;
 
 
     private readonly updater: Updater = new Updater();
@@ -137,6 +141,7 @@ export class GameRenderer {
         if (backgroundIndex === -1) backgroundIndex = Math.floor(rng() * backgrounds.length);
         // backgroundIndex = Math.floor(Math.random() * backgrounds.length); // For testing
         let background = backgrounds[backgroundIndex];
+        if (this.isTutorial || this.game.seed === 'pick') background = "butterfly.jpg";
         let subfolder = this.invertAxes ? 'portrait' : 'landscape';
 
         let source = `img/backgrounds/${subfolder}/${background}`;
@@ -192,7 +197,6 @@ export class GameRenderer {
 
     clearActiveTiles() {
         this.activatedTiles.clear();
-        this.clearHints();
         this.refresh();
     }
 
@@ -204,6 +208,7 @@ export class GameRenderer {
     private sendActiveTiles() {
         if (this.game.tryActivating(this.activatedTiles)) {
             this.clearActiveTiles();
+            this.clearHints();
         }
     }
 
@@ -266,7 +271,7 @@ export class GameRenderer {
         this.tutorialText.style.wordWrapWidth = this.app.screen.width * 0.55;
     }
 
-    private readonly stoneRadius = 15;
+    private readonly stoneRadius = isMobileDevice() ? 20 : 15;
     positionStones() {
         let radius = this.stoneRadius;
         let xPadding = radius * 1.5;
@@ -367,30 +372,48 @@ export class GameRenderer {
 
         this.stepTutorial();
 
-        // TODO: Resize based on mobile
-        const iconSize = 35;
+        const iconSize = isMobileDevice() ? 60 : 35;
         const padding = iconSize / 2;
-
-        this.shareButton = new Button('img/share.png', this.updater);
-        this.mainContainer.addChild(this.shareButton);
-        this.shareButton.x = padding;
-        this.shareButton.y = padding;
-        this.shareButton.icon.width = iconSize;
-        this.shareButton.icon.height = iconSize;
-        this.shareButton.visible = !this.isTutorial;
-        this.shareButton.onClicked.addHandler(() => {
-            this.onShare.emit();
-        });
 
         // TODO: Need some sort of indicator of how far out the hint is
         let hintButton = this.hintButton = new Button('img/hint.png', this.updater);
         this.mainContainer.addChild(hintButton);
         hintButton.x = padding;
-        hintButton.y = padding * 2 + iconSize;
+        hintButton.y = padding;
         hintButton.icon.width = iconSize;
         hintButton.icon.height = iconSize;
         hintButton.onClicked.addHandler((e) => {
             this.showHint(e.shiftKey && e.ctrlKey);
+            if (this.isTutorial) this.tutorialRenderer.step(false, true);
+        });
+        const hintButtonText = this.hintButtonText = new PIXI.Text('3', {
+            fontFamily: 'Arial',
+            fontSize: iconSize * 0.3,
+            fill: 0xffffff,
+            align: 'center',
+        });
+        hintButtonText.anchor.set(0.5, 0.5);
+        hintButtonText.x = iconSize / 2;
+        hintButtonText.y = iconSize * 0.45;
+        hintButtonText.visible = false;
+        hintButton.addChild(hintButtonText);
+
+        this.hintButtonIndicator = new Indicator(iconSize * 1.5, 4);
+        this.hintButtonIndicator.x = hintButton.x + iconSize / 2;
+        this.hintButtonIndicator.y = hintButton.y + iconSize / 2;
+        this.hintButtonIndicator.showing = false;
+        this.hintButtonIndicator.zIndex = 100;
+        this.mainContainer.addChild(this.hintButtonIndicator);
+
+        this.shareButton = new Button('img/share.png', this.updater);
+        this.mainContainer.addChild(this.shareButton);
+        this.shareButton.x = padding;
+        this.shareButton.y = padding * 2 + iconSize;
+        this.shareButton.icon.width = iconSize;
+        this.shareButton.icon.height = iconSize;
+        this.shareButton.visible = !this.isTutorial;
+        this.shareButton.onClicked.addHandler(() => {
+            this.onShare.emit();
         });
     }
 
@@ -427,6 +450,8 @@ export class GameRenderer {
         let priorHintHex = this.hintHex;
         // Hint the first hex in the hint group
         this.hintHex = hintable.filter(h => h.tile.groupIndex === hintGroupIndex)[0];
+        this.hintButtonText.visible = true;
+        this.hintButtonText.text = (this.hintMovesOut + 1).toString();
         this.hintMovesOut--;
         if (!this.hintHex) return; // This should never happen, but just in case
 
@@ -438,6 +463,7 @@ export class GameRenderer {
     clearHints() {
         if (this.hintHex) this.hintHex.showingIndicator = false;
         this.hintMovesOut = this.maxHintMovesOut;
+        this.hintButtonText.visible = false;
     }
 
     update(delta: number) {
@@ -447,5 +473,6 @@ export class GameRenderer {
         this.updater.update();
         this.stonePiecesIndicator.update(delta);
         this.stonesIndicator.update(delta);
+        this.hintButtonIndicator.update(delta);
     }
 }
