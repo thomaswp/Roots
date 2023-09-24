@@ -12,7 +12,7 @@ export class HexRenderer extends Container {
     readonly gridRenderer: GridRenderer;
     
     hovering = false;
-    backgroundColor: PIXI.Color;
+    backgroundColor: number;
 
     private icon: SpriteH;
     private hex: PIXI.Graphics;
@@ -261,7 +261,7 @@ export class HexRenderer extends Container {
             } else {
                 this.hoveringTime = 0;
             }
-            this.scale.x = this.scale.y = lerp(this.scale.x, targetScale, 0.1, 0.005);
+            this.scale.x = this.scale.y = lerp(this.scale.x, targetScale, 0.3, 0.005);
         }
 
         let colorShiftSpeed = 0.25;

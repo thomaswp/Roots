@@ -6,6 +6,7 @@ import { GameRenderer } from "./GameRenderer";
 import { HexRenderer } from "./HexRenderer";
 import { Indicator } from "./Indicator";
 import { lerp } from "../util/MathUtil";
+import { parallelLoop } from "../util/Parallel";
 
 export class GridRenderer {
 
@@ -42,16 +43,17 @@ export class GridRenderer {
         });
     }
 
-    loadBackgroundImage() {
+    async loadBackgroundImage() {
         if (this.backgrounds.length > 0) return;
         this.setTileBackgroundColors();
         // this.backgrounds.push(this.createMiniTileBackground(3));
         for (let i = 1; i <= 3; i++) {
-            this.backgrounds.push(this.createMiniTileBackground(i));
+            this.backgrounds.push(await this.createMiniTileBackground(i));
         }
+        this.refresh();
     }
 
-    createMiniTileBackground(power: number) {
+    async createMiniTileBackground(power: number) {
         const isLandscape = !this.renderer.invertAxes;
 
         // Works best with power of 2
@@ -81,14 +83,20 @@ export class GridRenderer {
         let colorArray = this.getScaledColorArray(gridWidth, gridHeight);
 
         let gridArray = grid.toArray();
-        colorArray.forEach((color, index) => {
+        const go = (color, index) => {
             let hex = gridArray[index];
             let points = hex.corners;
             // graphics.lineStyle(1, 0x888888);
-            graphics.beginFill(color.toNumber());
+            graphics.beginFill(color);
             graphics.drawPolygon(points);
             graphics.endFill();
-        });
+        };
+        await parallelLoop(i => {
+            if (i >= colorArray.length) return false;
+            go(colorArray[i], i);
+            return true;
+
+        }, 1000 / 60 / 5);
 
         const tileRadius = baseTile.dimensions.xRadius;
         if (isLandscape) {
@@ -100,6 +108,7 @@ export class GridRenderer {
         }
 
         graphics.zIndex = -100 - power;
+        graphics.alpha = 0;
         this.container.addChild(graphics);
         return graphics;
     }
@@ -170,14 +179,15 @@ export class GridRenderer {
         let imageData = ctx.getImageData(0, 0, width, height);
         let data = imageData.data;
 
-        let colors = [] as PIXI.Color[];
+        let colors = [] as number[];
+        
         for (let i = 0; i < data.length; i += 4) {
             let r = data[i];
             let g = data[i + 1];
             let b = data[i + 2];
             // let a = data[i + 3];
             let hex = this.hexes[i / 4];
-            let color = new PIXI.Color({r: r, g: g, b: b});
+            let color = r * 256 * 256 + g * 256 + b;
             colors.push(color);
         }
         return colors;
