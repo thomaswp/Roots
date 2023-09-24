@@ -147,6 +147,7 @@ export class HexRenderer extends Container {
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
+            if (this.renderer.disableActivation) return;
             let selectAll = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
