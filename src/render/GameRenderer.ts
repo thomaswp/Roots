@@ -44,6 +44,7 @@ export class GameRenderer {
     hintButtonIndicator: Indicator;
     private shareButton: Button;
     private hintButton: Button;
+    private hintButtonText: PIXI.Text;
     private hexContainer: PIXI.Container;
     private mainContainer: PIXI.Container;
 
@@ -385,6 +386,18 @@ export class GameRenderer {
             this.showHint(e.shiftKey && e.ctrlKey);
             if (this.isTutorial) this.tutorialRenderer.step(false, true);
         });
+        const hintButtonText = this.hintButtonText = new PIXI.Text('3', {
+            fontFamily: 'Arial',
+            fontSize: iconSize * 0.3,
+            fill: 0xffffff,
+            align: 'center',
+        });
+        hintButtonText.anchor.set(0.5, 0.5);
+        hintButtonText.x = iconSize / 2;
+        hintButtonText.y = iconSize * 0.45;
+        hintButtonText.visible = false;
+        hintButton.addChild(hintButtonText);
+
         this.hintButtonIndicator = new Indicator(iconSize * 1.5, 4);
         this.hintButtonIndicator.x = hintButton.x + iconSize / 2;
         this.hintButtonIndicator.y = hintButton.y + iconSize / 2;
@@ -437,6 +450,8 @@ export class GameRenderer {
         let priorHintHex = this.hintHex;
         // Hint the first hex in the hint group
         this.hintHex = hintable.filter(h => h.tile.groupIndex === hintGroupIndex)[0];
+        this.hintButtonText.visible = true;
+        this.hintButtonText.text = (this.hintMovesOut + 1).toString();
         this.hintMovesOut--;
         if (!this.hintHex) return; // This should never happen, but just in case
 
@@ -448,6 +463,7 @@ export class GameRenderer {
     clearHints() {
         if (this.hintHex) this.hintHex.showingIndicator = false;
         this.hintMovesOut = this.maxHintMovesOut;
+        this.hintButtonText.visible = false;
     }
 
     update(delta: number) {
