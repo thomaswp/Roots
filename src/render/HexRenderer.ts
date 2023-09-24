@@ -274,7 +274,9 @@ export class HexRenderer extends Container {
             // let perc = Math.cos(this.errorPerc * Math.PI) * -0.5 + 0.5;
             // targetBorderColor = lerpHexColor(targetBorderColor, 0xff0000, perc, 0.005);
             this.rotation = Math.sin(this.errorPerc * Math.PI) * 0.6;
-            targetColor = targetBorderColor = 0xffffff;
+            let groupColor = this.getGroupColor().toNumber(); 
+            targetBorderColor = this.tile.isStoneTile ? groupColor : 0xffffff;
+            targetColor = this.getHexColor().toNumber();
             colorShiftSpeed = 1;
             targetZIndex = 5;
         }
