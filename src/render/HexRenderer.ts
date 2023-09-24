@@ -79,9 +79,12 @@ export class HexRenderer extends Container {
     }
 
     setHidden(hidden: boolean) {
+        if (hidden == this.hidden) return;
         // Fade in when unhiding
         // if (!hidden && this.hidden) this.alpha = 0;
         this.hidden = hidden;
+        this.icon.visible = !hidden;
+        if (!hidden) this.icon.alpha = 0;
         // this.icon.alpha = this.hidden ? 0 : 1;
         this.refresh();
     }
@@ -257,7 +260,7 @@ export class HexRenderer extends Container {
             } else {
                 this.hoveringTime = 0;
             }
-            this.scale.x = this.scale.y = lerp(this.scale.x, targetScale, delta * 0.1, 0.005);
+            this.scale.x = this.scale.y = lerp(this.scale.x, targetScale, 0.1, 0.005);
         }
 
         let colorShiftSpeed = 0.25;
@@ -281,9 +284,9 @@ export class HexRenderer extends Container {
             let t = GameRenderer.clock * 0.1;
             targetIconRotation = Math.cos(t) * 0.25;
         }
-        this.icon.rotation = lerp(this.icon.rotation, targetIconRotation, delta * 0.1, 0.005);
+        this.icon.rotation = lerp(this.icon.rotation, targetIconRotation, 0.1, 0.005);
 
-        this.hex.tint = lerpHexColor(this.hex.tint, targetColor, delta * colorShiftSpeed);
+        this.hex.tint = lerpHexColor(this.hex.tint, targetColor, colorShiftSpeed);
         
         for (let i = 0; i < this.borderPieces.length; i++) {
             let piece = this.borderPieces[i];
@@ -294,30 +297,30 @@ export class HexRenderer extends Container {
             //     let perc = Math.cos(t) * 0.15 + 0.85;
             //     pieceTarget = new PIXI.Color({h: 0, s: 0, v: perc * 100}).toNumber();
             // }
-            piece.tint = lerpHexColor(startTint, pieceTarget, delta * colorShiftSpeed);
+            piece.tint = lerpHexColor(startTint, pieceTarget, colorShiftSpeed);
             if (piece.alpha < 1) {
-                piece.alpha = lerp(piece.alpha, 0, delta * 0.1, 0.005);
+                piece.alpha = lerp(piece.alpha, 0, 0.1, 0.005);
             }
         }
         this.zIndex = targetZIndex;
 
         let targetIconColor = this.targetIconColor;
         this.icon.color.setDark(
-            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005),
-            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005),
-            lerp(this.icon.color.darkR, targetIconColor.red, delta * colorShiftSpeed, 0.005)
+            lerp(this.icon.color.darkR, targetIconColor.red, colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, targetIconColor.red, colorShiftSpeed, 0.005),
+            lerp(this.icon.color.darkR, targetIconColor.red, colorShiftSpeed, 0.005)
         );
-        this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, delta * colorShiftSpeed, 0.005);
+        this.icon.alpha = lerp(this.icon.alpha, targetIconColor.alpha, colorShiftSpeed, 0.005);
 
         if (this.hidden) {
             this.hex.alpha = 1;
         } else {
             let hideHex = this.unlocked && this.renderer.game.nStones > 2 && this.flipValue <= 0;
-            this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, delta * 0.1, 0.005);
+            this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, 0.1, 0.005);
         }
 
         if (this.alpha < 1) {
-            this.alpha = lerp(this.alpha, 1, delta * 0.1, 0.005);
+            this.alpha = lerp(this.alpha, 1, 0.1, 0.005);
         }
     }
 

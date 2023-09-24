@@ -367,6 +367,7 @@ export class GameRenderer {
 
         this.stepTutorial();
 
+        // TODO: Resize based on mobile
         const iconSize = 35;
         const padding = iconSize / 2;
 
@@ -402,6 +403,7 @@ export class GameRenderer {
         .sort((a, b) => {
             return a.tile.groupIndex - b.tile.groupIndex;
         });
+        if (hintable.length === 0) return;
         // Get their group indexes
         let hintableGroups = hintable.map(h => h.tile.groupIndex)
             .filter((value, index, self) => self.indexOf(value) === index);

@@ -2,6 +2,7 @@ import * as PIXI from "pixi.js";
 
 export function lerp(a: number, b: number, p: number, thresh: number) {
     if (thresh !== undefined && Math.abs(a - b) < thresh) return b;
+    p = Math.max(Math.min(p, 1), 0);
     return a * (1 - p) + b * p;
 }
 
