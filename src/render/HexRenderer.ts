@@ -368,8 +368,7 @@ export class HexRenderer extends Container {
             // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb);
             // lineColor = 0xeeeeee;
             lineColor = 0x965B00;
-            hex.zIndex = active ? 1 : 0;
-            zIndex = 1;
+            zIndex = 0.25;
         } else if (this.active) {
             lineColor = 0xffffff;
             zIndex = 2;
