@@ -231,7 +231,6 @@ butterfly.jpg
 camel.jpg
 cardinal.jpg
 cat.jpg
-caterpillar.jpg
 catfish.jpg
 catterpillar.jpg
 centipede.jpg
@@ -275,7 +274,6 @@ goldfish.jpg
 goose.jpg
 gorilla.jpg
 grasshopper.jpg
-griffin.jpg
 guinea_pig.jpg
 gull.jpg
 hare.jpg
@@ -312,13 +310,11 @@ mantaray.jpg
 mantis.jpg
 meerkat.jpg
 millipede.jpg
-mite.jpg
 monkey.jpg
 moose.jpg
 mosquito.jpg
 mouse.jpg
 octopus.jpg
-orca.jpg
 ostrich.jpg
 otter.jpg
 owl.jpg
@@ -495,6 +491,4 @@ tiger.jpg
 toad.jpg
 tortoise.jpg
 toucan.jpg
-turtle.jpg
-
 `
