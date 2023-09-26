@@ -284,11 +284,16 @@ export class GridRenderer {
         this.indicators.forEach(indicator => {
             indicator.update(delta);
         });
-        // TODO: Should hide all BGs while there are 2 stones
         let showingBGIndex = this.renderer.game.nStones - 3;
-        for (let i = 0; i < this.backgrounds.length - 1; i++) {
+        for (let i = 0; i < this.backgrounds.length; i++) {
             let background = this.backgrounds[i];
             let hide = i < showingBGIndex;
+            // never hide the last background
+            if (i == this.backgrounds.length - 1) hide = false;
+            // Always hide backgrounds when we're showing the background on hexes
+            if (this.renderer.game.nStones == 2) hide = true;
+            // And wait to fade in the other backgrounds until the first is faded in
+            if (this.renderer.game.nStones == 3 && i > 0 && this.backgrounds[0].alpha < 1) hide = true;
             background.alpha = lerp(background.alpha, hide ? 0 : 1, 0.01, 0.01);
         }
 
