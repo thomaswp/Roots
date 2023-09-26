@@ -407,14 +407,15 @@ export class HexRenderer extends Container {
         this.targetScale = this.active ? 1.08 : 1;
 
         let hexColor = this.getHexColor();
-        if (this.backgroundColor && this.unlocked && this.renderer.game.nStones == 2) {
-            hexColor.setValue(this.backgroundColor);
-        }
         if (this.hidden) {
             hexColor.setValue(0x000000);
-        } else if (hovering || active) {
-            hexColor.multiply(0xeeeeee);
         } else if (this.unlocked) {
+            if (this.backgroundColor != null) {
+                hexColor.setValue(this.backgroundColor);
+            } else {
+                hexColor.setValue(0x000000);
+            }
+        } else if (hovering || active) {
             hexColor.multiply(0xeeeeee);
         } else {
             hexColor.multiply(0x888888);
