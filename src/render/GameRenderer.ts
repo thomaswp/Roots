@@ -12,10 +12,11 @@ import { Updater } from '../util/Updater';
 import { lerp } from '../util/MathUtil';
 import { Indicator } from './Indicator';
 import { Button } from './Button';
-import { HexRenderer } from './HexRenderer';
+import { HexRenderer, HexRendererController } from './HexRenderer';
 import { isMobileDevice } from '../util/MobileUtils';
+import { TipsRenderer } from './TipsRenderer';
 
-export class GameRenderer {
+export class GameRenderer implements HexRendererController {
 
     static clock: number = 0;
 
@@ -27,6 +28,8 @@ export class GameRenderer {
     readonly onResized = new Event<void>();
     readonly onShare = new Event<void>();
     readonly onBackgroundLoaded = new Event<void>();
+
+    private tipsRenderer: TipsRenderer;
 
     multitouch: Multitouch;
     gridRenderer: GridRenderer;
@@ -244,6 +247,14 @@ export class GameRenderer {
     iconPathForGroupIndex(index: number) : string {
         return `img/animals/${this.groupAnimalPaths[index]}`;
     }
+    
+    isGroupHovering(groupIndex: number): boolean {
+        return this.gridRenderer.hoverGroupIndex === groupIndex;
+    }
+
+    shouldHideHexBackgrounds(): boolean {
+        return this.game.nStones > 2;
+    }
 
     showTutorialText(text: string) {
         this.tutorialText.visible = true;
@@ -415,6 +426,16 @@ export class GameRenderer {
         this.shareButton.onClicked.addHandler(() => {
             this.onShare.emit();
         });
+
+        this.tipsRenderer = new TipsRenderer(this);
+        this.mainContainer.addChild(this.tipsRenderer);
+        this.tipsRenderer.zIndex = 200;
+        const positionTips = () => {
+            this.tipsRenderer.x = this.app.screen.width / 2;
+            this.tipsRenderer.y = this.app.screen.height / 2;
+        };
+        this.onResized.addHandler(positionTips);
+        positionTips();
     }
 
     showHint(cheat = false) {
@@ -474,5 +495,6 @@ export class GameRenderer {
         this.stonePiecesIndicator.update(delta);
         this.stonesIndicator.update(delta);
         this.hintButtonIndicator.update(delta);
+        this.tipsRenderer.update(delta);
     }
 }

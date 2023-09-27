@@ -7,9 +7,20 @@ import { SpriteH } from "pixi-heaven";
 import { lerp, lerpHexColor } from "../util/MathUtil";
 import { Direction } from "honeycomb-grid";
 
+export interface HexRendererController {
+    invertAxes: boolean;
+    colorForGroupIndex(index: number) : PIXI.Color;
+    colorForPlayerIndex(index: number) : PIXI.Color;
+    iconPathForGroupIndex(index: number) : string;
+    isTileActive(tile: Tile) : boolean;
+    isGroupHovering(groupIndex: number) : boolean;
+    shouldHideHexBackgrounds(): boolean;
+}
+
 export class HexRenderer extends Container {
     readonly tile: Tile;
     readonly gridRenderer: GridRenderer;
+    readonly displayOnly: boolean;
     
     hovering = false;
     backgroundColor: number;
@@ -32,12 +43,18 @@ export class HexRenderer extends Container {
 
     private hidden = false;
 
-    get renderer() : GameRenderer {
+    private _controller: HexRendererController;
+    get controller() : HexRendererController {
+        if (this._controller != null) return this._controller;
         return this.gridRenderer.renderer;
     }
 
+    set controller(controller: HexRendererController) {
+        this._controller = controller;
+    }
+
     get active() : boolean {
-        return this.renderer.isTileActive(this.tile);
+        return this.controller.isTileActive(this.tile);
     }
 
     get tileCenterX() : number {
@@ -56,18 +73,21 @@ export class HexRenderer extends Container {
         return this.tile.hasGroup;
     }
 
-    constructor(tile: Tile, gridRenderer: GridRenderer) {
+    // TODO: Get rid of gridRenderer altogether: it's only needed for interaction
+    constructor(tile: Tile, gridRenderer: GridRenderer, controller: HexRendererController = null, displayOnly = false) {
         super();
         this.gridRenderer = gridRenderer;
         this.tile = tile;
+        this.displayOnly = displayOnly;
+        this.controller = controller;
 
         this.createHexAndBorder();
         this.createIcon();
         this.addInteraction();
 
-        this.x = this.renderer.invertAxes ? this.tileCenterY : this.tileCenterX;
-        this.y = this.renderer.invertAxes ? this.tileCenterX : this.tileCenterY;
-        if (this.renderer.invertAxes) {
+        this.x = this.controller.invertAxes ? this.tileCenterY : this.tileCenterX;
+        this.y = this.controller.invertAxes ? this.tileCenterX : this.tileCenterY;
+        if (this.controller.invertAxes) {
             this.hex.rotation = this.border.rotation = Math.PI / 2;
         }
 
@@ -92,7 +112,7 @@ export class HexRenderer extends Container {
     createIcon() {
         let texture = null;
         if (this.hasGroup) {
-            let path = this.renderer.iconPathForGroupIndex(this.tile.groupIndex);
+            let path = this.controller.iconPathForGroupIndex(this.tile.groupIndex);
             texture = PIXI.Texture.from(path);
         }
         let icon = this.icon = new SpriteH(texture);
@@ -107,19 +127,21 @@ export class HexRenderer extends Container {
     }
 
     addInteraction() {
+        if (this.displayOnly) return;
         let graphics = this.hex;
         let tile = this.tile;
 
         graphics.interactive = true;
+        const renderer = this.gridRenderer.renderer;
 
-        let isGesturing = () => this.renderer.multitouch.isGesturing;
+        let isGesturing = () => renderer.multitouch.isGesturing;
         const onDown = (e, whenGesturing = false) => {
             if (!whenGesturing && isGesturing()) return;
             if (this.tile.unlocked) return;
             this.hovering = true;
             // If hidden, act like a blank tile (index 0)
             this.gridRenderer.updateHover(this.hidden ? null : tile.groupIndex, true);
-            this.gridRenderer.renderer.onHoverChanged.emit(tile.id);
+            renderer.onHoverChanged.emit(tile.id);
             this.refresh();
         }
         const onUp = (e) => {
@@ -140,31 +162,31 @@ export class HexRenderer extends Container {
         }
 
         graphics.onrightclick = (e) => {
-            this.renderer.clearActiveTiles();
+            renderer.clearActiveTiles();
         }
         let lastCliked = 0;
         const onClick = (e) => {
             console.log('clicked', tile.id);
             if (isGesturing()) return;
             if (this.tile.unlocked) return;
-            if (this.renderer.disableActivation) return;
+            if (renderer.disableActivation) return;
             let selectAll = Date.now() - lastCliked < 400;
             // console.log(Date.now(), lastCliked, Date.now() - lastCliked);
             lastCliked = Date.now();
 
-            if (this.renderer.autoSelectGroup) {
-                let activatedTiles = this.renderer.activatedTiles;
+            if (renderer.autoSelectGroup) {
+                let activatedTiles = renderer.activatedTiles;
                 // If a tile is clicked and all the tiles in that group are selected, we probably
                 // just activated them all with a click, so we should also deactivate them
                 if (activatedTiles.size == tile.groupCount &&
                     [...activatedTiles.keys()].every(t => t.groupIndex === tile.groupIndex)
                 ) {
-                    this.renderer.clearActiveTiles();
+                    renderer.clearActiveTiles();
                     return;
                 }
 
                 // Select all if this is the first click and we can (why not...)
-                if (activatedTiles.size == 0 && this.renderer.nFreeStones >= tile.groupCount) {
+                if (activatedTiles.size == 0 && renderer.nFreeStones >= tile.groupCount) {
                     selectAll = true;
                 }
             }
@@ -173,14 +195,14 @@ export class HexRenderer extends Container {
             if (this.hidden) selectAll = false;
 
             // Tutorial disables double-click too
-            if (this.renderer.autoSelectGroup && selectAll) {
-                this.renderer.activateGroup(tile);
+            if (renderer.autoSelectGroup && selectAll) {
+                renderer.activateGroup(tile);
             } else if (!this.active) {
-                if (!this.renderer.activateTile(tile)) {
+                if (!renderer.activateTile(tile)) {
                     this.showError();
                 }
             } else {
-                this.renderer.deactivateTile(tile);
+                renderer.deactivateTile(tile);
             }
             this.refresh();
         }
@@ -253,7 +275,7 @@ export class HexRenderer extends Container {
             this.flipValue = Math.max(0, this.flipValue - delta * 0.07);
         } else {
             let targetScale = this.targetScale;
-            let hovering = this.hovering || this.gridRenderer.hoverGroupIndex === this.tile.groupIndex;
+            let hovering = this.hovering || this.controller.isGroupHovering(this.tile.groupIndex);
             if (hovering && targetScale == 1) {
                 this.hoveringTime += delta;
                 // targetColor = lerpHexColor(targetColor, 0x777777, -Math.cos(this.hoveringTime * 0.06) * 0.5 + 0.5);
@@ -318,7 +340,7 @@ export class HexRenderer extends Container {
         if (this.hidden) {
             this.hex.alpha = 1;
         } else {
-            let hideHex = this.unlocked && this.renderer.game.nStones > 2 && this.flipValue <= 0;
+            let hideHex = this.unlocked && this.controller.shouldHideHexBackgrounds() && this.flipValue <= 0;
             this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, 0.1, 0.005);
         }
 
@@ -333,7 +355,7 @@ export class HexRenderer extends Container {
     }
 
     getGroupColor() : PIXI.Color {
-        return this.gridRenderer.renderer.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
+        return this.controller.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
     }
 
     getHexColor() : PIXI.Color {
@@ -356,7 +378,7 @@ export class HexRenderer extends Container {
         let active = tile.unlocked || this.active;
         let hovering = this.hovering;
 
-        if (this.gridRenderer.hoverGroupIndex === tile.groupIndex && !this.hidden) {
+        if (this.controller.isGroupHovering(tile.groupIndex) && !this.hidden) {
             hovering = true;
         }
 
@@ -376,7 +398,7 @@ export class HexRenderer extends Container {
             lineColor = 0xffffff;
             zIndex = 1.5;
         } else if (this.hoveringPlayers.size > 0) {
-            lineColor = this.gridRenderer.renderer.colorForPlayerIndex([...this.hoveringPlayers.keys()][0]);
+            lineColor = this.controller.colorForPlayerIndex([...this.hoveringPlayers.keys()][0]);
             zIndex = 1.5;
         } else {
             lineColor = new PIXI.Color('00000000');
@@ -438,7 +460,7 @@ export class HexRenderer extends Container {
             Direction.NE,
         ]
 
-        if (this.renderer.invertAxes) {
+        if (this.controller.invertAxes) {
             order = [
                 Direction.E,
                 Direction.NE,
