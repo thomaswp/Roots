@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
-import { GridRenderer } from './GridRender';
+import Spline from 'cubic-spline';
+import { CurveInterpolator } from 'curve-interpolator';
 import { Direction, Grid, Hex, rectangle } from 'honeycomb-grid';
 import { Tile } from '../roots/Tile';
 import { HexRenderer, HexRendererController } from './HexRenderer';
@@ -96,7 +97,7 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
 
             let x = (width - padding * 2) / (columns * 2) * (column * 2 + 1) + padding;
             let y = (height - padding * 2) / (rows * 2) * (row * 2 + 1) + padding;
-            console.log(index, row, column, x, y);
+            // console.log(index, row, column, x, y);
             tip.x = x - this.backgroundWidth / 2;
             tip.y = y - this.backgroundHeight / 2;
         });
@@ -164,7 +165,6 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
 
         let outline = new PIXI.Graphics();
         clustering.clusters.forEach((clusterIDs, index) => {
-            console.log(clusterIDs);
             let cluster = clusterIDs.map(id => gridArray[id]);
             let outlinePoints = this.getOutlinePoints(cluster);
 
@@ -175,11 +175,17 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
                 join: PIXI.LINE_JOIN.ROUND
             });
 
-            let lastPoint = outlinePoints[outlinePoints.length - 1];
-            outline.moveTo(lastPoint.x, lastPoint.y);
-            outlinePoints.forEach(point => {
-                outline.lineTo(point.x, point.y);
-            });
+            let opArray = outlinePoints.map(point => [point.x, point.y]);
+            opArray.push([outlinePoints[0].x, outlinePoints[0].y]);
+            opArray.push([outlinePoints[1].x, outlinePoints[1].y]);
+            const interp = new CurveInterpolator(opArray, { tension: 0.2, alpha: 0.5 });
+
+            outline.beginFill(0x44ff44, 0.2);
+            outline.moveTo(outlinePoints[0].x, outlinePoints[0].y);
+            for (let i = 1; i <= 50; i++) {
+                let point = interp.getPointAt(i / 50);
+                outline.lineTo(point[0], point[1]);
+            };
             outline.endFill();
         });
         container.addChild(outline);
