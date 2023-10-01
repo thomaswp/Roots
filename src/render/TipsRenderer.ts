@@ -5,6 +5,7 @@ import { Tile } from '../roots/Tile';
 import { HexRenderer, HexRendererController } from './HexRenderer';
 import { GameRenderer } from './GameRenderer';
 import { Clustering } from '../roots/Clustering';
+import { lerp } from '../util/MathUtil';
 
 
 interface TipLayout {
@@ -41,9 +42,9 @@ const tipLayouts: TipLayout[] = [
         isSuccess: false,
     },
     {
-        goalTiles: [[0, 0], [1, 0]],
+        goalTiles: [[0, 0], [2, 0]],
         unlockedTiles: [],
-        activatedTiles: [[0, 0], [1, 0]],
+        activatedTiles: [[0, 0], [2, 0], [1, 0]],
         isSuccess: true,
     },
 ];
@@ -52,45 +53,37 @@ function isInList(list: [number, number][], tile: Tile) {
     return list.some(([q, r]) => tile.q === q && tile.r === r);
 }
 
-export class TipsRenderer extends PIXI.Container implements HexRendererController {
+const START_STAGE = -1;
 
-    private renderer: GameRenderer;
+export class TipsRenderer extends PIXI.Container {
 
     // TODO: handle resize
     private backgroundWidth: number = 800;
     private backgroundHeight: number = 600;
-
-    private tips: PIXI.Container[] = [];
-    private hexes: HexRenderer[] = [];
-
-    private activeHexes = [] as HexRenderer[];
-
-    readonly invertAxes = false;
+    private tipRenderers = [] as TipRenderer[];
 
     constructor(gameRenderer: GameRenderer) {
         super();
-        this.renderer = gameRenderer;
 
         this.createBackground();
 
         for (let layout of tipLayouts) {
-            let tip = this.createTip(layout);
+            let tip = new TipRenderer(layout, gameRenderer);
             this.addChild(tip);
-            this.tips.push(tip);
+            this.tipRenderers.push(tip);
         }
         this.layout();
-        this.hexes.forEach(hex => hex.refresh());
     }
 
     layout() {
         let [width, height] = [this.backgroundWidth, this.backgroundHeight];
 
         let columns = 2;
-        let rows = Math.ceil(this.tips.length / columns);
+        let rows = Math.ceil(this.tipRenderers.length / columns);
         let padding = width * 0.05;
 
         // TODO: handle scale and position based on width and height in resize method
-        this.tips.forEach((tip, index) => {
+        this.tipRenderers.forEach((tip, index) => {
             let column = index % columns;
             let row = Math.floor(index / columns);
 
@@ -120,10 +113,42 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
         this.addChild(background);
     }
 
-    createTip(tipLayout: TipLayout) : PIXI.Container {
-        let container = new PIXI.Container();
+    update(delta: number) {
+        this.tipRenderers.forEach(tip => tip.update(delta));
+    }
+}
 
-        let tiles = [] as Tile[];
+class TipRenderer extends PIXI.Container implements HexRendererController {
+
+    tipLayout: TipLayout;
+    renderer: GameRenderer;
+    activeHexes = [] as HexRenderer[];
+    hexes = [] as HexRenderer[];
+    hexesToActivate = [] as HexRenderer[];
+    goalHexes = [] as HexRenderer[];
+    backgrounds = [] as PIXI.Graphics[];
+    stage: number;
+
+    get lastStage() {
+        return this.tipLayout.activatedTiles.length;
+    }
+
+    readonly invertAxes = false;
+
+    constructor(tipLayout: TipLayout, renderer: GameRenderer) {
+        super();
+        this.tipLayout = tipLayout;
+        this.renderer = renderer;
+        this.sortableChildren = true;
+
+        this.stage = tipLayout.activatedTiles.length - 1;
+        this.init();
+        this.hexes.forEach(hex => hex.refresh());
+        this.setStage(this.stage);
+    }
+    
+    init() {
+        let tipLayout = this.tipLayout;
 
         let grid = new Grid(Tile, rectangle({ width: 4, height: 4 }));
         let gridArray = grid.toArray();
@@ -145,16 +170,45 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
                     tile.groupIndex = isGoal ? 1 : 2;
                     tile.groupCount = isGoal ? tipLayout.goalTiles.length : 6;
                 }
-                let hex = new HexRenderer(tile, this.renderer.gridRenderer, this, true);
+                let hex = new HexRenderer(tile, null, this, true);
                 if (isGoal) {
                     this.activeHexes.push(hex);
+                    this.goalHexes.push(hex);
                 }
-                container.addChild(hex);
+                this.addChild(hex);
                 hex.backgroundColor = 0xe67B30;
                 this.hexes.push(hex);
-                tiles.push(hex.tile);
             }
         });
+        this.hexesToActivate = tipLayout.activatedTiles.map(([q, r]) => {
+            return this.hexes.find(hex => hex.tile.q === q && hex.tile.r === r); 
+        });
+
+        let backgrounds = new PIXI.Container();
+        backgrounds.zIndex = 1;
+        for (let i = START_STAGE; i <= tipLayout.activatedTiles.length; i++) {
+            let background = this.createBackgroundForTip(grid, i);
+            background.alpha = i == tipLayout.activatedTiles.length - 1 ? 1 : 0;
+            backgrounds.addChild(background);
+            this.backgrounds.push(background);
+        }
+
+        this.addChild(backgrounds);
+    }
+
+    createBackgroundForTip(grid: Grid<Tile>, stage: number) : PIXI.Graphics {
+        let gridArray = grid.toArray();
+
+        // Find the active or unlocked tiles at the current stage
+        let tiles = gridArray.filter((tile, index) => {
+            if (tile.unlocked) return true;
+            let activatedOrder = this.hexesToActivate.findIndex(hex => hex.tile === tile);
+            // If it's not activated at some point, don't include it
+            if (activatedOrder === -1) return false;
+            // Otherwise, include it if it's activated at or before the current stage
+            return activatedOrder <= stage;
+        });
+
 
         let clustering = new Clustering();
         tiles.forEach(tile => {
@@ -163,6 +217,7 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
 
 
         let outline = new PIXI.Graphics();
+        if (stage == this.lastStage) return outline;
         clustering.clusters.forEach((clusterIDs, index) => {
             console.log(clusterIDs);
             let cluster = clusterIDs.map(id => gridArray[id]);
@@ -182,9 +237,8 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
             });
             outline.endFill();
         });
-        container.addChild(outline);
 
-        return container;
+        return outline;
     }
 
     getOutlinePoints(tiles: Tile[]) {
@@ -220,7 +274,6 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
                 midpoints.push(midpoint);
             }
 
-            let index = 0;
             let neighbors = tile.getNeighbors(true);
             let openMidpointIndices = order.map((dir, index) => index)
             .filter(index => !tiles.includes(neighbors[order[index]]));
@@ -263,10 +316,35 @@ export class TipsRenderer extends PIXI.Container implements HexRendererControlle
         return points;
     }
 
-    update(delta: number) {
-        this.hexes.forEach(hex => hex.update(delta));
+    setStage(stage: number) {
+        if (stage > this.lastStage) stage = START_STAGE;
+        this.stage = stage;
+        this.activeHexes = this.hexesToActivate.filter((_, index) => index <= this.stage);
+        if (this.stage == this.lastStage) this.activeHexes = [];
+        this.goalHexes.forEach(hex => {
+            // TODO: Outline on unlcoked tiles looks strange for some
+            if (this.stage == START_STAGE) hex.lock();
+            if (this.stage == this.lastStage) hex.unlock();
+        });
+        this.hexes.forEach(hex => hex.refresh());
+        console.log("setting stage", this.stage, this.activeHexes.length);
+
     }
 
+    lastUpdate = 0;
+    update(delta: number) {
+        this.lastUpdate += delta;
+        if (this.lastUpdate > 120) {
+            this.lastUpdate = 0;
+            this.setStage(this.stage + 1);
+        }
+
+        this.hexes.forEach(hex => hex.update(delta));
+        this.backgrounds.forEach((background, index) => {
+            // -1 because the first background is for stage -1
+            background.alpha = lerp(background.alpha, index - 1 === this.stage ? 1 : 0, 0.1, 0.001);
+        });
+    }
 
     colorForGroupIndex(index: number): PIXI.Color {
         return this.renderer.colorForGroupIndex(index);

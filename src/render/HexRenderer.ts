@@ -354,6 +354,12 @@ export class HexRenderer extends Container {
         this.unlocked = true;
     }
 
+    lock() {
+        console.log("LCOK!");
+        this.unlocked = false;
+        this.flipValue = 1;
+    }
+
     getGroupColor() : PIXI.Color {
         return this.controller.colorForGroupIndex(this.tile.groupCount - 2) || new PIXI.Color(0x000000);
     }
