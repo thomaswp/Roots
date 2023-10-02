@@ -15,6 +15,7 @@ export interface HexRendererController {
     isTileActive(tile: Tile) : boolean;
     isGroupHovering(groupIndex: number) : boolean;
     shouldHideHexBackgrounds(): boolean;
+    shouldAnimateIcons(): boolean;
 }
 
 export class HexRenderer extends Container {
@@ -32,7 +33,6 @@ export class HexRenderer extends Container {
 
     private hoveringPlayers = new Map<number, number>();
     private flipValue: number = 0;
-    private unlocked = false;
     private targetBorderColor = 0x000000;
     private targetHexColor = 0xffffff;
     private targetIconColor = new PIXI.Color(0x000000);
@@ -42,6 +42,11 @@ export class HexRenderer extends Container {
     private errorPerc = 0;
 
     private hidden = false;
+
+    private _unlocked = false;
+    get unlocked() {
+        return this._unlocked;
+    }
 
     private _controller: HexRendererController;
     get controller() : HexRendererController {
@@ -305,7 +310,7 @@ export class HexRenderer extends Container {
         }
 
         let targetIconRotation = 0;
-        if (this.active) {
+        if (this.active && this.controller.shouldAnimateIcons()) {
             let t = GameRenderer.clock * 0.1;
             targetIconRotation = Math.cos(t) * 0.25;
         }
@@ -340,7 +345,7 @@ export class HexRenderer extends Container {
         if (this.hidden) {
             this.hex.alpha = 1;
         } else {
-            let hideHex = this.unlocked && this.controller.shouldHideHexBackgrounds() && this.flipValue <= 0;
+            let hideHex = this._unlocked && this.controller.shouldHideHexBackgrounds() && this.flipValue <= 0;
             this.hex.alpha = lerp(this.hex.alpha, hideHex ? 0 : 1, 0.1, 0.005);
         }
 
@@ -351,13 +356,13 @@ export class HexRenderer extends Container {
 
     unlock() {
         this.flipValue = 1;
-        this.unlocked = true;
+        this._unlocked = true;
     }
 
     lock() {
-        console.log("LCOK!");
-        this.unlocked = false;
+        this._unlocked = false;
         this.flipValue = 1;
+        this.borderPieces.forEach(piece => piece.alpha = 1);
     }
 
     getGroupColor() : PIXI.Color {
@@ -377,7 +382,7 @@ export class HexRenderer extends Container {
         let tile = this.tile;
         let hex = this.hex;
 
-        if (tile.unlocked && !this.unlocked) {
+        if (tile.unlocked && !this._unlocked) {
             this.unlock();
         }
 
@@ -392,7 +397,7 @@ export class HexRenderer extends Container {
 
         let lineColor;
         let zIndex = 0;
-        if (tile.unlocked) {
+        if (this._unlocked) {
             // lineColor = new PIXI.Color(groupCountColor).multiply(0xbbbbbb);
             // lineColor = 0xeeeeee;
             lineColor = 0x965B00;
@@ -425,19 +430,19 @@ export class HexRenderer extends Container {
         let targetIconColor;
         if (this.active) {
             targetIconColor = 0xffffff;
-        } else if (this.unlocked) {
+        } else if (this._unlocked) {
             targetIconColor = 0x000000;
         } else {
             targetIconColor = 0x000000;
         }
-        this.targetIconColor.setValue(this.unlocked ? 0x555555 : targetIconColor);
-        this.targetIconColor.setAlpha(this.unlocked ? 0 : 1);
+        this.targetIconColor.setValue(this._unlocked ? 0x555555 : targetIconColor);
+        this.targetIconColor.setAlpha(this._unlocked ? 0 : 1);
         this.targetScale = this.active ? 1.08 : 1;
 
         let hexColor = this.getHexColor();
         if (this.hidden) {
             hexColor.setValue(0x000000);
-        } else if (this.unlocked) {
+        } else if (this._unlocked) {
             if (this.backgroundColor != null) {
                 hexColor.setValue(this.backgroundColor);
             } else {

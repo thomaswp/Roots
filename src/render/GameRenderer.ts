@@ -256,6 +256,10 @@ export class GameRenderer implements HexRendererController {
         return this.game.nStones > 2;
     }
 
+    shouldAnimateIcons(): boolean {
+        return true;
+    }
+
     showTutorialText(text: string) {
         this.tutorialText.visible = true;
         this.tutorialText.alpha = 0;
