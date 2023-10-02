@@ -434,12 +434,23 @@ export class GameRenderer implements HexRendererController {
         this.tipsRenderer = new TipsRenderer(this);
         this.mainContainer.addChild(this.tipsRenderer);
         this.tipsRenderer.zIndex = 200;
+        this.tipsRenderer.alpha = 0;
         const positionTips = () => {
             this.tipsRenderer.x = this.app.screen.width / 2;
             this.tipsRenderer.y = this.app.screen.height / 2;
         };
         this.onResized.addHandler(positionTips);
         positionTips();
+
+        let tipsButton = new Button('img/tips.png', this.updater);
+        this.mainContainer.addChild(tipsButton);
+        tipsButton.x = padding;
+        tipsButton.y = padding * 3 + iconSize * 2;
+        tipsButton.icon.width = iconSize;
+        tipsButton.icon.height = iconSize;
+        tipsButton.onClicked.addHandler(() => {
+            this.tipsRenderer.showing = !this.tipsRenderer.showing;
+        });
     }
 
     showHint(cheat = false) {
