@@ -1,5 +1,5 @@
 Plans: 
-* Add a diagram to the tutorial to explain mechanics: Add text/icons and a better icon, scale properly
+* Add a diagram to the tutorial to explain mechanics: Add text/icons and a better icon, scale properly, add to tutorial
 * Make a better text box for join link.
 * Sounds for unlocking, activating, error and winning
 * Victory!
