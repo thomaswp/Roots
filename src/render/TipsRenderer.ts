@@ -17,18 +17,19 @@ interface TipLayout {
 }
 
 const tipLayouts: TipLayout[] = [
-    {
-        goalTiles: [[0, 0], [1, 0]],
-        unlockedTiles: [],
-        activatedTiles: [[0, 0], [1, 0]],
-        isSuccess: true,
-    },
-    {
-        goalTiles: [[0, 0], [2, 0]],
-        unlockedTiles: [],
-        activatedTiles: [[0, 0], [2, 0]],
-        isSuccess: false,
-    },
+    // Probably too simple
+    // {
+    //     goalTiles: [[0, 0], [1, 0]],
+    //     unlockedTiles: [],
+    //     activatedTiles: [[0, 0], [1, 0]],
+    //     isSuccess: true,
+    // },
+    // {
+    //     goalTiles: [[0, 0], [2, 0]],
+    //     unlockedTiles: [],
+    //     activatedTiles: [[0, 0], [2, 0]],
+    //     isSuccess: false,
+    // },
     {
         goalTiles: [[0, 0], [2, 0]],
         unlockedTiles: [[1, 0]],
@@ -48,16 +49,22 @@ const tipLayouts: TipLayout[] = [
         isSuccess: true,
     },
     {
-        goalTiles: [[0, 0], [1, 0], [0, 1]],
+        goalTiles: [[0, 0], [2, 0], [0, 1]],
         unlockedTiles: [],
-        activatedTiles: [[0, 0], [0, 1]],
+        activatedTiles: [[0, 0], [0, 1], [1, 0]],
         isSuccess: false,
     },
     {
-        goalTiles: [[0, -1], [2, -1]],
+        goalTiles: [[-2, 0], [2, -1]],
         unlockedTiles: [[-1, 1], [1, 0]],
-        activatedTiles: [[0, -1], [2, -1], [-1, 0], [0, 1]],
+        activatedTiles: [[-2, 0], [2, -1], [-1, 0], [0, 1]],
         isSuccess: true,
+    },
+    {
+        goalTiles: [[1, 0], [0, -1], [-2, 2]],
+        unlockedTiles: [[0, 0]],
+        activatedTiles: [[1, 0], [0, -1], [-2, 2]],
+        isSuccess: false,
     },
 ];
 
@@ -99,11 +106,15 @@ export class TipsRenderer extends PIXI.Container {
             let column = index % columns;
             let row = Math.floor(index / columns);
 
+            let bounds = tip.getLocalBounds();
+            let cx = (bounds.left + bounds.right) / 2;
+            let cy = (bounds.top + bounds.bottom) / 2;
+
             let x = (width - padding * 2) / (columns * 2) * (column * 2 + 1) + padding;
             let y = (height - padding * 2) / (rows * 2) * (row * 2 + 1) + padding;
             // console.log(index, row, column, x, y);
-            tip.x = x - this.backgroundWidth / 2;
-            tip.y = y - this.backgroundHeight / 2;
+            tip.x = x - this.backgroundWidth / 2 - cx;
+            tip.y = y - this.backgroundHeight / 2 - cy;
         });
     }
 
@@ -130,6 +141,7 @@ export class TipsRenderer extends PIXI.Container {
     }
 }
 
+// TODO: Should show the number of stones remaining
 class TipRenderer extends PIXI.Container implements HexRendererController {
 
     tipLayout: TipLayout;
@@ -160,28 +172,37 @@ class TipRenderer extends PIXI.Container implements HexRendererController {
         this.hexes.forEach(hex => hex.refresh());
         this.setStage(this.stage);
 
+        let rect = this.getLocalBounds();
+        let padding = rect.width * 0.1;
         // Create a background with some padding to make hovering consistent
         let background = new PIXI.Graphics();
-        background.beginFill(0x000000, 0.1);
-        background.drawRect(0, 0, this.width * 1.2, this.height * 1.2);
+        background.beginFill(0x888888, 0.01);
+        // background.lineStyle({
+        //     width: 1,
+        //     color: 0xffffff,
+        // });
+        background.drawRect(
+            rect.left - padding, 
+            rect.top - padding, 
+            rect.width + padding * 2,
+            rect.height + padding * 2
+        );
         background.endFill();
         background.zIndex = -1;
         this.addChild(background);
-        background.x = -background.width / 2;
-        background.y = -background.height / 2;
+        // background.x = -background.width / 2;
+        // background.y = -background.height / 2;
 
         this.interactive = true;
         this.onpointerenter = this.onmouseenter = () => {
             this.isAnimating = true;
             this.setStage(START_STAGE);
             this.lastUpdate = 0;
-            console.log("enter");
         };
 
         this.onpointerleave = this.onmouseleave = () => {
             this.isAnimating = false;
             this.setStage(this.lastStage - 1);
-            console.log("exit");
         };
     }
     
@@ -229,7 +250,7 @@ class TipRenderer extends PIXI.Container implements HexRendererController {
         });
 
         let backgrounds = new PIXI.Container();
-        backgrounds.zIndex = 1;
+        backgrounds.zIndex = 10;
         for (let i = START_STAGE; i <= tipLayout.activatedTiles.length; i++) {
             let background = this.createBackgroundForTip(grid, i);
             background.alpha = i == tipLayout.activatedTiles.length - 1 ? 1 : 0;
@@ -266,7 +287,7 @@ class TipRenderer extends PIXI.Container implements HexRendererController {
         if (this.tipLayout.isSuccess && stage == this.lastStage - 1) lineColor = 0x44ff44;
         if (!this.tipLayout.isSuccess && stage == this.lastStage) lineColor = 0x777777;
         clustering.clusters.forEach((clusterIDs, index) => {
-            console.log(clusterIDs);
+            // console.log(clusterIDs);
             let cluster = clusterIDs.map(id => gridArray[id]);
             let outlinePoints = this.getOutlinePoints(cluster);
 
@@ -286,6 +307,67 @@ class TipRenderer extends PIXI.Container implements HexRendererController {
         });
 
         return outline;
+    }
+
+    addPointsForTile(points: PIXI.Point[], allowedTiles: Tile[], tile: Tile, startDir: Direction, lastTile?: Tile) {
+        let order = [
+            Direction.E,
+            Direction.SE,
+            Direction.SW,
+            Direction.W,
+            Direction.NW,
+            Direction.NE,
+        ]
+
+        const padding = 10;
+        const norm = (point: PIXI.Point) => {
+            let mag = Math.sqrt(point.x * point.x + point.y * point.y);
+            return new PIXI.Point(point.x / mag, point.y / mag);
+        }
+        let center = new PIXI.Point(tile.x, tile.y);
+        let extend = (point: PIXI.Point) => {
+            let n = norm(new PIXI.Point(point.x - center.x, point.y - center.y));
+            return new PIXI.Point(Math.round(point.x + n.x * padding), Math.round(point.y + n.y * padding));
+        }
+
+        let startDirIndex = order.findIndex(dir => dir === startDir);
+        let corners = tile.corners;
+
+        // TODO: Still missing tiles, but hey...
+        let neighbors = tile.getNeighbors(true);
+        for (let i = 0; i < order.length; i++) {
+            let dirIndex = (startDirIndex + i) % order.length;
+            let dir = order[dirIndex];
+            let neighbor = neighbors[dir];
+            if (neighbor != null && allowedTiles.includes(neighbor)) {
+                if (neighbor == lastTile) continue;
+                console.log(tile, neighbor, dir);
+                this.addPointsForTile(points, allowedTiles, neighbor, (dir + 4) % 8, tile);
+                return;
+            }
+            
+            let corner = corners[dirIndex];
+            let nextCorner = corners[(dirIndex + 1) % corners.length];
+
+            if (i > 0) {
+                points.push(new PIXI.Point(corner.x, corner.y));
+            }
+
+            let midpoint = new PIXI.Point((corner.x + nextCorner.x) / 2, (corner.y + nextCorner.y) / 2);
+            // midpoint = extend(midpoint);
+            // If we've seen this point before, we're done!
+            if (points.some(point => point.x === midpoint.x && point.y === midpoint.y)) return;
+            console.log(midpoint);
+            points.push(midpoint);
+        }
+    }
+
+    // TODO: Finish fixing
+    getOutlinePoints2(tiles: Tile[]) {
+        console.log("--------");
+        let points = [] as PIXI.Point[];
+        this.addPointsForTile(points, tiles, tiles[0], Direction.E);
+        return points;
     }
 
     getOutlinePoints(tiles: Tile[]) {
@@ -374,7 +456,9 @@ class TipRenderer extends PIXI.Container implements HexRendererController {
                     hex.unlock();
                     hex.tile.unlocked = true;
                 } else {
-                    // hex.showError();
+                    if (!this.hexesToActivate.includes(hex)) {
+                        hex.showError();
+                    }
                 }
             } else if (hex.unlocked) {
                 hex.lock();
